@@ -1216,6 +1216,11 @@ void cmdq_core_reset_thread_struct(void)
 	for (index = 0; index < CMDQ_MAX_THREAD_COUNT; index++) {
 		pThread[index].allowDispatching = 1;
 	}
+
+	/* Initialize work queue per thread */
+	for (index = 0; index < CMDQ_MAX_THREAD_COUNT; index++) {
+		gCmdqContext.thread[index].taskThreadAutoReleaseWQ = create_singlethread_workqueue("cmdq_auto_release_thread");
+	}
 }
 
 int32_t cmdqCoreInitialize(void)
@@ -1261,11 +1266,6 @@ int32_t cmdqCoreInitialize(void)
 
 	gCmdqContext.taskAutoReleaseWQ = create_singlethread_workqueue("cmdq_auto_release");
 	gCmdqContext.taskConsumeWQ = create_singlethread_workqueue("cmdq_task");
-
-	/* Initialize work queue per thread */
-	for (index = 0; index < CMDQ_MAX_THREAD_COUNT; index++) {
-		gCmdqContext.thread[index].taskThreadAutoReleaseWQ = create_singlethread_workqueue("cmdq_auto_release_thread");
-	}
 
 #ifdef CMDQ_DUMP_FIRSTERROR
 	/* Reset overall first error dump */
@@ -5106,9 +5106,15 @@ DEBUG_STATIC void cmdq_core_handle_done_with_cookie_impl(int32_t thread,
 
 	if (pThread->waitCookie <= cookie) {
 		count = cookie - pThread->waitCookie + 1;
+	} else if ((cookie+1) % CMDQ_MAX_COOKIE_VALUE == pThread->waitCookie) {
+		count = 0;
+		CMDQ_MSG("IRQ: duplicated cookie: waitCookie:%d, hwCookie:%d", 
+			pThread->waitCookie, cookie);
 	} else {
 		/* Counter wrapped */
 		count = (CMDQ_MAX_COOKIE_VALUE - pThread->waitCookie + 1) + (cookie + 1);
+		CMDQ_ERR("IRQ: counter wrapped: waitCookie:%d, hwCookie:%d, count=%d", 
+			pThread->waitCookie, cookie, count);
 	}
 
 	for (inner = (pThread->waitCookie % CMDQ_MAX_TASK_IN_THREAD); count > 0; count--, inner++) {
@@ -5278,9 +5284,15 @@ DEBUG_STATIC void cmdqCoreHandleError(int32_t thread, int32_t value, CMDQ_TIME *
 	/* Set the remain tasks to done state */
 	if (pThread->waitCookie <= cookie) {
 		count = cookie - pThread->waitCookie + 1;
+	} else if ((cookie+1) % CMDQ_MAX_COOKIE_VALUE == pThread->waitCookie) {
+		count = 0;
+		CMDQ_MSG("IRQ: duplicated cookie: waitCookie:%d, hwCookie:%d", 
+			pThread->waitCookie, cookie);
 	} else {
 		/* Counter wrapped */
 		count = (CMDQ_MAX_COOKIE_VALUE - pThread->waitCookie + 1) + (cookie + 1);
+		CMDQ_ERR("IRQ: counter wrapped: waitCookie:%d, hwCookie:%d, count=%d", 
+			pThread->waitCookie, cookie, count);
 	}
 
 	for (inner = (pThread->waitCookie % CMDQ_MAX_TASK_IN_THREAD); count > 0; count--, inner++) {
