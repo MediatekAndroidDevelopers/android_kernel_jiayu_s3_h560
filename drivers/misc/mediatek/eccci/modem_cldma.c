@@ -95,7 +95,7 @@ static const unsigned char high_priority_queue_mask =  0x00;
 
 #define TAG "mcd"
 
-#define IS_PASS_SKB(md,qno) (md->md_state!=EXCEPTION &&((1<<qno) & NET_RX_QUEUE_MASK)) 
+#define IS_PASS_SKB(md,qno) ((md->md_state!=EXCEPTION || md->ex_stage!=EX_INIT_DONE) &&((1<<qno) & NET_RX_QUEUE_MASK)) 
 /*
  * do NOT add any static data, data should be in modem's instance
  */
@@ -294,7 +294,7 @@ static int cldma_rx_collect(struct md_cd_queue *queue, int budget, int blocking,
 
     struct ccci_request *req;
     struct cldma_rgpd *rgpd;
-    struct ccci_request *new_req;
+	struct ccci_request *new_req = NULL;
     struct ccci_header ccci_h;
     struct sk_buff *skb;
 #ifdef CLDMA_TRACE
@@ -305,7 +305,7 @@ static int cldma_rx_collect(struct md_cd_queue *queue, int budget, int blocking,
     unsigned long long total_handle_time=0;
 #endif
     int ret=0, count=0,qno=queue->index;
-    unsigned long long skb_bytes;
+	unsigned long long skb_bytes = 0;
     *result = UNDER_BUDGET;
     *rxbytes =0;
 
@@ -553,7 +553,6 @@ static int cldma_tx_collect(struct md_cd_queue *queue, int budget, int blocking,
     struct ccci_modem *md = queue->modem;
     struct md_cd_ctrl *md_ctrl = (struct md_cd_ctrl *)md->private_data;
     unsigned long flags;
-
     struct ccci_request *req;
     struct cldma_tgpd *tgpd;
     struct ccci_header *ccci_h;
@@ -951,7 +950,7 @@ static irqreturn_t cldma_isr(int irq, void *data)
 static void cldma_irq_work(struct work_struct *work)
 {
 	struct md_cd_ctrl *md_ctrl = container_of(work, struct md_cd_ctrl, cldma_irq_work);
-	struct ccci_modem *md = md_ctrl->txq[0].modem;
+	struct ccci_modem *md = md_ctrl->modem;
     cldma_irq_work_cb(md);
 }
 
@@ -1093,7 +1092,7 @@ static inline void cldma_stop_for_ee(struct ccci_modem *md)
 static inline void cldma_reset(struct ccci_modem *md)
 {
     struct md_cd_ctrl *md_ctrl = (struct md_cd_ctrl *)md->private_data;
-	unsigned int SO_CFG;
+	volatile unsigned int SO_CFG;
     
     CCCI_INF_MSG(md->index, TAG, "%s from %ps\n", __FUNCTION__, __builtin_return_address(0));
     cldma_stop(md);
@@ -1108,6 +1107,13 @@ static inline void cldma_reset(struct ccci_modem *md)
 	}
     // wait RGPD write transaction repsonse
     cldma_write32(md_ctrl->cldma_ap_ao_base, CLDMA_AP_SO_CFG, cldma_read32(md_ctrl->cldma_ap_ao_base, CLDMA_AP_SO_CFG) | 0x4);
+	SO_CFG = cldma_read32(md_ctrl->cldma_ap_ao_base, CLDMA_AP_SO_CFG);
+	if (SO_CFG & 0x1 == 0)  // write function didn't work
+	{
+		CCCI_ERR_MSG(md->index, TAG, "Enable AP OUTCLDMA failed. Register can't be wrote. SO_CFG=0x%x\n", SO_CFG);
+		cldma_dump_register(md);
+		cldma_write32(md_ctrl->cldma_ap_ao_base, CLDMA_AP_SO_CFG, cldma_read32(md_ctrl->cldma_ap_ao_base, CLDMA_AP_SO_CFG)|0x05);
+	}
     // enable SPLIT_EN
     cldma_write32(md_ctrl->cldma_ap_ao_base, CLDMA_AP_BUS_CFG, cldma_read32(md_ctrl->cldma_ap_ao_base, CLDMA_AP_BUS_CFG)|0x02);
     // set high priority queue
@@ -1305,25 +1311,17 @@ static int md_cd_start_queue(struct ccci_modem *md, unsigned char qno, DIRECTION
 static void md_cd_wdt_work(struct work_struct *work)
 {
     struct md_cd_ctrl *md_ctrl = container_of(work, struct md_cd_ctrl, wdt_work);
-    struct ccci_modem *md = md_ctrl->txq[0].modem;
-    int ret = 0;
-#ifdef  ENABLE_CLDMA_AP_SIDE    
+	struct ccci_modem *md = md_ctrl->modem;
+	int ret = 0;
     // 1. dump RGU reg
-    CCCI_INF_MSG(0, TAG, "Dump MD RGU registers\n");
+	CCCI_INF_MSG(md->index, TAG, "Dump MD RGU registers\n");
     md_cd_lock_modem_clock_src(1);
-    ccci_mem_dump(0, md_ctrl->md_rgu_base, 0x30);
+	ccci_mem_dump(md->index, md_ctrl->md_rgu_base, 0x30);
     md_cd_lock_modem_clock_src(0);
-#else
-    CCCI_INF_MSG(md->index, TAG, "Dump MD RGU registers\n");
-    md_cd_lock_modem_clock_src(1);
-    ccci_mem_dump(md->index, md_ctrl->md_rgu_base, 0x30);
-    md_cd_lock_modem_clock_src(0);
-#endif
-
-#ifdef CONFIG_ARCH_MT6753
-	CCCI_INF_MSG(0, TAG, "tmp return for D3 bringup!\n");
-	return;
-#endif
+	if(md->md_state == INVALID) {
+		CCCI_ERR_MSG(md->index, TAG, "md_cd_wdt_work: md_state is INVALID\n");
+		return;
+	}
     // 2. wakelock
     wake_lock_timeout(&md_ctrl->trm_wake_lock, 10*HZ);
 
@@ -1411,6 +1409,7 @@ static int md_cd_ccif_send(struct ccci_modem *md, int channel_id)
 static void md_cd_exception(struct ccci_modem *md, HIF_EX_STAGE stage)
 {
     struct md_cd_ctrl *md_ctrl = (struct md_cd_ctrl *)md->private_data;
+	volatile unsigned int SO_CFG;
 
     CCCI_INF_MSG(md->index, TAG, "MD exception HIF %d\n", stage);
     // in exception mode, MD won't sleep, so we do not need to request MD resource first
@@ -1442,6 +1441,14 @@ static void md_cd_exception(struct ccci_modem *md, HIF_EX_STAGE stage)
         md_cd_clear_all_queue(md, IN); // purge Rx queue
         ccci_md_exception_notify(md, EX_INIT_DONE);
         cldma_start(md);
+
+		SO_CFG = cldma_read32(md_ctrl->cldma_ap_ao_base, CLDMA_AP_SO_CFG);
+		if (SO_CFG & 0x1 == 0)  // write function didn't work
+		{
+			CCCI_ERR_MSG(md->index, TAG, "Enable AP OUTCLDMA failed. Register can't be wrote. SO_CFG=0x%x\n", SO_CFG);
+			cldma_dump_register(md);
+			cldma_write32(md_ctrl->cldma_ap_ao_base, CLDMA_AP_SO_CFG, cldma_read32(md_ctrl->cldma_ap_ao_base, CLDMA_AP_SO_CFG)|0x05);
+		}
         break;
     default:
         break;
@@ -1451,7 +1458,7 @@ static void md_cd_exception(struct ccci_modem *md, HIF_EX_STAGE stage)
 static void md_cd_ccif_delayed_work(struct work_struct *work)
 {
     struct md_cd_ctrl *md_ctrl = container_of(to_delayed_work(work), struct md_cd_ctrl, ccif_delayed_work);
-    struct ccci_modem *md = md_ctrl->txq[0].modem;
+	struct ccci_modem *md = md_ctrl->modem;
     int i;
 
 #if defined (CONFIG_MTK_AEE_FEATURE)
@@ -1478,7 +1485,7 @@ static void md_cd_ccif_delayed_work(struct work_struct *work)
 static void md_cd_ccif_work(struct work_struct *work)
 {
     struct md_cd_ctrl *md_ctrl = container_of(work, struct md_cd_ctrl, ccif_work);
-    struct ccci_modem *md = md_ctrl->txq[0].modem;
+	struct ccci_modem *md = md_ctrl->modem;
     // seems sometime MD send D2H_EXCEPTION_INIT_DONE and D2H_EXCEPTION_CLEARQ_DONE together
     if(md_ctrl->channel_id & (1<<D2H_EXCEPTION_INIT))
         md_cd_exception(md, HIF_EX_INIT);
@@ -1952,13 +1959,20 @@ static int md_cd_write_room(struct ccci_modem *md, unsigned char qno)
     return md_ctrl->txq[qno].free_slot;
 }
 
+/*
+*[IMPORTANT NOTES]
+* For improve network performance, network port will pass skb directly by req args
+* So we should check current port no whethe is network queue by IS_PASS_SKB(md,qno),
+* if yes,  skb=(struct sk_buff *)req;
+* else req is struct ccci_request *
+*/
 static int md_cd_send_request(struct ccci_modem *md, unsigned char qno, struct ccci_request* req)
 {
     struct md_cd_ctrl *md_ctrl = (struct md_cd_ctrl *)md->private_data;
     struct md_cd_queue *queue;
     struct ccci_request *tx_req;
     struct cldma_tgpd *tgpd;
-    int ret;
+    int ret=0;
     int blocking;
     struct ccci_header *ccci_h;
     struct sk_buff *skb;
@@ -2833,10 +2847,10 @@ static int ccci_modem_probe(struct platform_device *plat_dev)
     // init modem structure
     md->ops = &md_cd_ops;
     CCCI_INF_MSG(md_id, TAG, "md_cldma_probe:md=%p,md->private_data=%p\n",md,md->private_data);
-    md_ctrl = (struct md_cd_ctrl *)md->private_data;
 
     // init modem private data
     md_ctrl = (struct md_cd_ctrl *)md->private_data;
+	md_ctrl->modem = md;
     md_ctrl->hw_info = md_hw;
     md_ctrl->txq_active = 0;
     md_ctrl->rxq_active = 0;

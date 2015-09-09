@@ -49,7 +49,7 @@
 #define NET_RX_QUEUE_MASK 0x38
 #define NAPI_QUEUE_MASK NET_RX_QUEUE_MASK // Rx, only Rx-exclusive port can enable NAPI
 
-#define IS_PASS_SKB(md,qno) (md->md_state!=EXCEPTION &&((1<<qno) & NET_RX_QUEUE_MASK)) 
+#define IS_PASS_SKB(md,qno) ((md->md_state!=EXCEPTION || md->ex_stage!=EX_INIT_DONE) &&((1<<qno) & NET_RX_QUEUE_MASK)) 
 
 #define RX_BUGDET 16
 

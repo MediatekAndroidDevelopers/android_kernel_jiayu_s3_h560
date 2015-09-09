@@ -12,7 +12,7 @@
 #define CHECKSUM_SIZE 0 //12
 #define CLDMA_TXQ_NUM 8
 #define CLDMA_RXQ_NUM 8
-#define ENABLE_CLDMA_TIMER
+//#define ENABLE_CLDMA_TIMER
 #define CLDMA_TIMER_LOOP 10 //ms
 
 struct md_cd_queue {
@@ -43,6 +43,7 @@ struct md_cd_queue {
 };
 
 struct md_cd_ctrl {
+	struct ccci_modem * modem;
 	// hardcode, max queue number should be synced with struct ccci_port@ccci_core.h
 	struct md_cd_queue txq[CLDMA_TXQ_NUM];
 	struct md_cd_queue rxq[CLDMA_RXQ_NUM];
