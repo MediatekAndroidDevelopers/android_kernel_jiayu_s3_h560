@@ -239,7 +239,7 @@ PowerUp PowerOnList={
 			 {SensorMCLK,Vol_High, 0},
 			 {DOVDD, Vol_1800, 0},
 			 {AVDD,  Vol_2800, 0},
-			 {DVDD,  Vol_1200, 0},
+			 {DVDD,  VOL_1100, 0},
 			 {AFVDD, Vol_2800, 5},
 			 {PDN,   Vol_Low,  4},
 			 {PDN,   Vol_High, 0},
@@ -253,13 +253,13 @@ PowerUp PowerOnList={
 		{SENSOR_DRVNAME_S5K4H5YC_MIPI_RAW,
 		 {
 			 {SensorMCLK,Vol_High, 0},
-			 {PDN,   Vol_Low,  10},
-			 {RST,   Vol_Low,  10},
-			 {DVDD,  Vol_1200, 5},
-			 {AVDD,  Vol_2800, 4},
-			 {DOVDD, Vol_1800, 5},
+			 {DOVDD, Vol_1800, 0},
+			 {AVDD,  Vol_2800, 0},
+			 {DVDD,  Vol_1200, 0},
 			 {AFVDD, Vol_2800, 5},
+			 {PDN,   Vol_Low,  10},
 			 {PDN,   Vol_High, 10},
+			 {RST,   Vol_Low,  10},
 			 {RST,   Vol_High, 10},
 		 },
 		},
@@ -506,13 +506,6 @@ BOOL hwpoweron(PowerInformation pwInfo, char* mode_name)
 			if(mt_set_gpio_mode(PowerCustList.PowerCustInfo[0].Gpio_Pin,PowerCustList.PowerCustInfo[0].Gpio_Mode)){PK_DBG("[CAMERA LENS] set gpio mode failed!! \n");}
 			if(mt_set_gpio_dir(PowerCustList.PowerCustInfo[0].Gpio_Pin,GPIO_DIR_OUT)){PK_DBG("[CAMERA LENS] set gpio dir failed!! \n");}
 			if(mt_set_gpio_out(PowerCustList.PowerCustInfo[0].Gpio_Pin,PowerCustList.PowerCustInfo[0].Voltage)){PK_DBG("[CAMERA LENS] set gpio failed!! \n");}
-			#ifdef VANZO_CAMERA_AVDD_COMPATIBLE_LDO
-			if(TRUE != hwPowerOn(pwInfo.PowerType,pwInfo.Voltage,mode_name))
-       	 	{
-				PK_DBG("[CAMERA SENSOR] Fail to enable digital power\n");
-				return FALSE;
-        	}
-			#endif
 		}
 	}
 	else if(pwInfo.PowerType == DVDD)
@@ -672,13 +665,6 @@ BOOL hwpowerdown(PowerInformation pwInfo, char* mode_name)
 			if(mt_set_gpio_dir(PowerCustList.PowerCustInfo[0].Gpio_Pin,GPIO_DIR_OUT)){PK_DBG("[CAMERA LENS] set gpio dir failed!! \n");}
 			if(mt_set_gpio_out(PowerCustList.PowerCustInfo[0].Gpio_Pin,0)){PK_DBG("[CAMERA LENS] set gpio failed!! \n");}
 			//if(mt_set_gpio_out(PowerCustList.PowerCustInfo[0].Gpio_Pin,PowerCustList.PowerCustInfo[0].Voltage)){PK_DBG("[CAMERA LENS] set gpio failed!! \n");}
-			#ifdef VANZO_CAMERA_AVDD_COMPATIBLE_LDO
-			if(TRUE != hwPowerDown(pwInfo.PowerType,mode_name))
-       	 	{
-				PK_DBG("[CAMERA SENSOR] Fail to enable digital power\n");
-				return FALSE;
-        	}
-			#endif
 		}
 	}
 	else if(pwInfo.PowerType == DVDD)
