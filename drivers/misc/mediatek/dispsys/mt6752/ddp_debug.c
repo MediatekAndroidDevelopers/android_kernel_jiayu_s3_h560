@@ -122,8 +122,11 @@ unsigned int gResetOVLInAALTrigger = 0;
 unsigned int gDisableOVLTF = 0;
 
 unsigned int gRDMAUltraSetting = 0x1b013bea;   // so we can modify RDMA ultra at run-time
+unsigned int gRDMAUltraSetting_Directlink = 0x1b013bea;  
 unsigned int gRDMAUltraSetting_Decouple = 0x0e014570;
 unsigned int gRDMAFIFOLen = 32;
+unsigned int gEnableSODIWhenIdle = 1;
+unsigned int gDisableIRQWhenIdle = 1;
 
 #ifdef _MTK_USER_
 unsigned int gEnableIRQ = 0;
@@ -136,6 +139,8 @@ unsigned int gDisableSODIForTriggerLoop = 1;
 unsigned int gEnableCMDQProfile = 0;
 
 unsigned int gChangeRDMAThreshold = 0;
+unsigned int gIssueRequestThreshold = 1;
+
 unsigned int gChangeMMClock = 0;
 unsigned int gDecouplePQWithRDMA = 1;
 
@@ -888,6 +893,38 @@ static void disp_debug_api(unsigned int enable, char *buf)
         sprintf(buf, "disp_set_pll_by_cmdq=364. estimate execute time=%d \n", time);  
         cmdqRecDestroy(handle);
     }   
+    else if(enable==55)
+    {
+        if(gIssueRequestThreshold==0) 
+          gIssueRequestThreshold= 1;
+        else
+          gIssueRequestThreshold= 0;
+    
+        printk("DDP: gIssueRequestThreshold=%d\n", gIssueRequestThreshold);    
+        sprintf(buf, "gIssueRequestThreshold: %d\n", gIssueRequestThreshold);   
+    
+    }
+    else if(enable==56)
+    {
+        if(gDisableIRQWhenIdle==0)
+          gDisableIRQWhenIdle = 1;
+        else
+          gDisableIRQWhenIdle = 0;
+    
+        printk("DDP: gDisableIRQWhenIdle=%d\n", gDisableIRQWhenIdle);    
+        sprintf(buf, "gDisableIRQWhenIdle: %d\n", gDisableIRQWhenIdle);   
+    }
+	else if(enable==57)
+    {
+        if(gEnableSODIWhenIdle==0)
+          gEnableSODIWhenIdle = 1;
+        else
+          gEnableSODIWhenIdle = 0;
+    
+        printk("DDP: gEnableSODIWhenIdle=%d\n", gEnableSODIWhenIdle);    
+        sprintf(buf, "gEnableSODIWhenIdle: %d\n", gEnableSODIWhenIdle);   
+    
+    }
     else if(enable==40)
     {
         sprintf(buf, "version: %d, %s\n", 12, __TIME__);  

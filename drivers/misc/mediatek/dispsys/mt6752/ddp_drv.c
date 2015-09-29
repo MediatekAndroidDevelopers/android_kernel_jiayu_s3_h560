@@ -641,6 +641,14 @@ static int disp_probe(struct platform_device *pdev)
 
 	// secure video path implementation: a physical address is allocated to place a handle for decryption buffer.
 	init_tplay_handle(&(pdev->dev)); // non-zero value for valid VA
+
+	// init IRQ related wait queue
+	// if for some reason disp_drv probe is called before mtkfb probe, the wait queue not inited
+	// if IRQ happens and call into the waitqueue thread, error may happen.
+	{
+        extern int dpmgr_init(void);
+        dpmgr_init();
+	}
 #endif
 	
     new_count = nr_dispsys_dev + 1;

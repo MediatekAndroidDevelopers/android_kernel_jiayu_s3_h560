@@ -371,6 +371,9 @@ extern unsigned int disp_low_power_disable_fence_thread;
 extern unsigned int disp_low_power_remove_ovl;
 extern unsigned int disp_low_power_lfr;
 extern unsigned int gDumpClockStatus;
+extern unsigned int gEnableSODIWhenIdle;
+extern unsigned int gDisableIRQWhenIdle;
+extern unsigned int gEnableIRQ;
 static void _disp_primary_idle_lock()
 {
 	mutex_lock(&idle_lock);
@@ -578,6 +581,19 @@ int primary_display_save_power_for_idle(int enter, unsigned int need_primary_loc
         // already implemented.
     }
 
+    // only enable SODI in idle mode
+    if(gEnableSODIWhenIdle)
+    {
+        if(enter)
+        {          
+            spm_enable_sodi(1);
+        }
+        else
+        {
+            spm_enable_sodi(0);
+        }
+    }   
+
     // no need idle lock ,cause primary lock will be used inside switch_mode 
     if(disp_low_power_remove_ovl==1)
     {
@@ -587,9 +603,14 @@ int primary_display_save_power_for_idle(int enter, unsigned int need_primary_loc
              extern unsigned int gChangeMMClock;
              extern unsigned int gChangeRDMAThreshold;
              extern unsigned int gRDMAUltraSetting_Decouple;
+             extern unsigned int gRDMAUltraSetting_Directlink;
              extern unsigned int gRDMAUltraSetting;
              extern unsigned int gRDMARequestThreshold;
+             extern unsigned int gIssueRequestThreshold;
              cmdqRecHandle handle = NULL;	         
+
+             unsigned int reg_value;
+             extern int ddp_dsi_disable_irq_in_idle(unsigned int isIdle, void *cmdq_handle);
 	         
             if(enter)            
             {              
@@ -605,12 +626,40 @@ int primary_display_save_power_for_idle(int enter, unsigned int need_primary_loc
                          disp_set_pll_by_cmdq(156, handle);
                          cmdqRecDestroy(handle);
                      }
-                     if(gChangeRDMAThreshold==1)
+                     if(gChangeRDMAThreshold==1 || gIssueRequestThreshold==1 ||(gDisableIRQWhenIdle==1 && gEnableIRQ==1))
                      {
-                         DISP_CPU_REG_SET(DISP_REG_RDMA_MEM_GMC_SETTING_0, gRDMAUltraSetting_Decouple);
+                         cmdqRecCreate(CMDQ_SCENARIO_PRIMARY_DISP,&handle); 
+                         cmdqRecWaitNoClear(handle, CMDQ_EVENT_MUTEX0_STREAM_EOF);                         
+                         if(gChangeRDMAThreshold==1)
+                         {
+                             gRDMAUltraSetting = gRDMAUltraSetting_Decouple;
+                             DISP_REG_SET(handle, DISP_REG_RDMA_MEM_GMC_SETTING_0, gRDMAUltraSetting);
+                         }
+                         if(gIssueRequestThreshold==1)
+                         {
+                             gRDMARequestThreshold = 0xf0;
+                             DISP_REG_SET(handle, DISP_REG_RDMA_MEM_GMC_SETTING_1, gRDMARequestThreshold);
+                         }
+                         if(gDisableIRQWhenIdle==1)
+                         {
+                            // OVL0/OVL1
+                            //DISP_REG_SET(handle, DISP_REG_OVL_INTEN, 0x1e0);
+                            //DISP_REG_SET(handle,DISP_REG_OVL_INTEN+DISP_OVL_INDEX_OFFSET, 0x1e0);            
+                            // Mutex0
+                            reg_value = DISP_REG_GET(DISP_REG_CONFIG_MUTEX_INTEN);
+                            DISP_REG_SET(handle,DISP_REG_CONFIG_MUTEX_INTEN, reg_value&(~(1<<0))&(~(1<<DISP_MUTEX_TOTAL)));
+                            // RDMA0
+                            DISP_REG_SET(handle,DISP_REG_RDMA_INT_ENABLE, 0x18);
+                            // DSI
+                            ddp_dsi_disable_irq_in_idle(1, handle);                                    
+                         }
+                         
+                         cmdqRecFlush(handle);
+                         cmdqRecDestroy(handle);
+                         
+                         //DISP_CPU_REG_SET(DISP_REG_RDMA_MEM_GMC_SETTING_0, gRDMAUltraSetting);
+                         //DISP_CPU_REG_SET(DISP_REG_RDMA_MEM_GMC_SETTING_1, gRDMARequestThreshold);
 
-                         gRDMARequestThreshold = 0xf0;
-                         DISP_CPU_REG_SET(DISP_REG_RDMA_MEM_GMC_SETTING_1, gRDMARequestThreshold);
                      }
                  }
                  
@@ -629,34 +678,46 @@ int primary_display_save_power_for_idle(int enter, unsigned int need_primary_loc
                      disp_set_pll_by_cmdq(364, handle);
                      cmdqRecDestroy(handle);
                  }
-                 if(gChangeRDMAThreshold==1)
-                 {
-                     DISP_CPU_REG_SET(DISP_REG_RDMA_MEM_GMC_SETTING_0, gRDMAUltraSetting);
+                 if(gChangeRDMAThreshold==1 || gIssueRequestThreshold==1 ||(gDisableIRQWhenIdle==1 && gEnableIRQ==1))
+                    {
+                          cmdqRecCreate(CMDQ_SCENARIO_PRIMARY_DISP,&handle); 
+                          cmdqRecWaitNoClear(handle, CMDQ_EVENT_MUTEX0_STREAM_EOF);
 
-                     gRDMARequestThreshold = 0x10;
-                     DISP_CPU_REG_SET(DISP_REG_RDMA_MEM_GMC_SETTING_1, gRDMARequestThreshold);
+                          if(gChangeRDMAThreshold==1)
+                          {
+                              gRDMAUltraSetting = gRDMAUltraSetting_Directlink;
+                              DISP_REG_SET(handle, DISP_REG_RDMA_MEM_GMC_SETTING_0, gRDMAUltraSetting);
+                          }
+                          if(gIssueRequestThreshold==1)
+                          {
+                              gRDMARequestThreshold = 0x10;
+                              DISP_REG_SET(handle, DISP_REG_RDMA_MEM_GMC_SETTING_1, gRDMARequestThreshold); 
+                          }
+                          if(gDisableIRQWhenIdle==1)
+                          {                
+                                // OVL0/OVL1
+                                //DISP_REG_SET(handle,DISP_REG_OVL_INTEN, 0x1e2);
+                                //DISP_REG_SET(handle,DISP_REG_OVL_INTEN+DISP_OVL_INDEX_OFFSET, 0x1e2);
+                            
+                                // Mutex0
+                                reg_value = DISP_REG_GET(DISP_REG_CONFIG_MUTEX_INTEN);
+                                DISP_REG_SET(handle,DISP_REG_CONFIG_MUTEX_INTEN, reg_value|(1<<0)|(1<<DISP_MUTEX_TOTAL));
+                            
+                                // RDMA0
+                                DISP_REG_SET(handle,DISP_REG_RDMA_INT_ENABLE, 0x3E);
+
+                                ddp_dsi_disable_irq_in_idle(0, &handle);
+                          }
+                          
+                          cmdqRecFlush(handle);
+                          cmdqRecDestroy(handle);
+                          
+                          //DISP_CPU_REG_SET(DISP_REG_RDMA_MEM_GMC_SETTING_0, gRDMAUltraSetting);                          
+                          //DISP_CPU_REG_SET(DISP_REG_RDMA_MEM_GMC_SETTING_1, gRDMARequestThreshold);
+                          
                  }
-                 //DISPMSG("disp_low_power_remove_ovl 4\n");
             }
         }
-    }
-    if(disp_low_power_lfr==1)
-    {
-			if(primary_display_is_video_mode()==1)	// only for video mode
-			{ 		   
-				if(enter) 		   
-				{
-				  printk("enter lfr\n");
-					primary_display_lfr_enable(1);
-					MMProfileLogEx(ddp_mmp_get_events()->dsi_lfr_switch, MMProfileFlagPulse, 1, 0);
-				}
-				else
-				{
-				  printk("leave lfr\n");
-					primary_display_lfr_enable(0);
-					MMProfileLogEx(ddp_mmp_get_events()->dsi_lfr_switch, MMProfileFlagPulse, 0, 0);
-				}
-			}
     }
 
 end:
@@ -871,6 +932,8 @@ static unsigned int release_started_frm_seq(unsigned int addr, DISP_FRM_SEQ_STAT
     return 0;
 }
 
+wait_queue_head_t primary_display_present_fence_wq;
+atomic_t primary_display_present_fence_update_event = ATOMIC_INIT(0);
 
 #ifdef DISP_SWITCH_DST_MODE
 unsigned long long last_primary_trigger_time;
@@ -4448,6 +4511,9 @@ static int _present_fence_release_worker_thread(void *data)
        }
        else
        {
+           wait_event_interruptible(primary_display_present_fence_wq, atomic_read(&primary_display_present_fence_update_event));
+	   atomic_set(&primary_display_present_fence_update_event, 0);
+
            ret = dpmgr_wait_event(pgc->dpmgr_handle, DISP_PATH_EVENT_IF_VSYNC);  
        }
        
@@ -4986,6 +5052,7 @@ int primary_display_init(char *lcm_name, unsigned int lcm_fps)
 	}
 #endif
 
+	init_waitqueue_head(&primary_display_present_fence_wq);		
 	present_fence_release_worker_task = kthread_create(_present_fence_release_worker_thread, NULL, "present_fence_worker");
     wake_up_process(present_fence_release_worker_task);
 
@@ -5243,8 +5310,16 @@ int primary_display_suspend(void)
 	msleep(16);  // wait last frame done
 	if(dpmgr_path_is_busy(pgc->dpmgr_handle))
 	{
-		MMProfileLogEx(ddp_mmp_get_events()->primary_suspend, MMProfileFlagPulse, 1, 2);
+		unsigned int reg = DISP_REG_GET(DISP_REG_RDMA_INT_ENABLE);
+		// before wait rdma frame done, enable RDMA IRQ if it was disabled
+	if ((reg&0x4)==0) {
+		DISP_CPU_REG_SET(DISP_REG_RDMA_INT_ENABLE, reg|0x4);
+	}
+        
+		MMProfileLogEx(ddp_mmp_get_events()->primary_suspend, MMProfileFlagPulse, 1, 2);		
+		
 		int event_ret = dpmgr_wait_event_timeout(pgc->dpmgr_handle, DISP_PATH_EVENT_FRAME_DONE, HZ*1);
+		
 		MMProfileLogEx(ddp_mmp_get_events()->primary_suspend, MMProfileFlagPulse, 2, 2);
 		DISPCHECK("[POWER]primary display path is busy now, wait frame done, event_ret=%d\n", event_ret);
 		if(event_ret<=0)
@@ -5254,6 +5329,12 @@ int primary_display_suspend(void)
 			primary_display_diagnose();
 			ret = -1;	
 		}
+
+		// restore rdma IRQ enable reg
+		if((reg&0x4)==0)
+        {
+           DISP_CPU_REG_SET(DISP_REG_RDMA_INT_ENABLE, reg);
+        }
 	}	
 
 	// for decouple mode
@@ -5415,7 +5496,7 @@ int primary_display_resume(void)
 	dpmgr_path_power_on(pgc->dpmgr_handle, CMDQ_DISABLE);
 	DISPCHECK("dpmanager path power on[end]\n");
 
-	if(_is_decouple_mode(pgc->session_mode))
+	if(_is_decouple_mode(pgc->session_mode) && pgc->ovl2mem_path_handle!=NULL)
 	{
 		dpmgr_path_power_on(pgc->ovl2mem_path_handle, CMDQ_DISABLE);
 	}
@@ -5684,6 +5765,9 @@ static int primary_display_remove_output(void *callback, unsigned int userdata)
 void primary_display_update_present_fence(unsigned int fence_idx)
 {
     gPresentFenceIndex = fence_idx;    
+    atomic_set(&primary_display_present_fence_update_event, 1);
+    wake_up_interruptible(&primary_display_present_fence_wq);  
+
 }
 
 int primary_display_trigger(int blocking, void *callback, unsigned int userdata)
@@ -6795,7 +6879,7 @@ int primary_display_diagnose(void)
 	return ret;
 #endif
 	dpmgr_check_status(pgc->dpmgr_handle);
-    if(_is_decouple_mode(pgc->session_mode))
+    if(_is_decouple_mode(pgc->session_mode) && pgc->ovl2mem_path_handle!=NULL)
 		dpmgr_check_status(pgc->ovl2mem_path_handle);
 	primary_display_check_path(NULL, 0);
 	
