@@ -1242,10 +1242,19 @@ wlanAdapterStart (
     UINT_32 u4SetInfoLen;
 #endif
 
+	enum Adapter_Start_Fail_Reason {
+		ALLOC_ADAPTER_MEM_FAIL,
+		DRIVER_OWN_FAIL,
+		INIT_ADAPTER_FAIL,
+		RAM_CODE_DOWNLOAD_FAIL,
+		WAIT_FIRMWARE_READY_FAIL,
+		FAIL_REASON_MAX
+	} eFailReason;
     ASSERT(prAdapter);
 
     DEBUGFUNC("wlanAdapterStart");
 
+	eFailReason = FAIL_REASON_MAX;
     //4 <0> Reset variables in ADAPTER_T
     prAdapter->fgIsFwOwn = TRUE;
     prAdapter->fgIsEnterD3ReqIssued = FALSE;
@@ -1262,6 +1271,7 @@ wlanAdapterStart (
         if ( (u4Status = nicAllocateAdapterMemory(prAdapter)) != WLAN_STATUS_SUCCESS ) {
             DBGLOG(INIT, ERROR, ("nicAllocateAdapterMemory Error!\n"));
             u4Status = WLAN_STATUS_FAILURE;
+			eFailReason = ALLOC_ADAPTER_MEM_FAIL;
             break;
         }
 
@@ -1278,6 +1288,7 @@ wlanAdapterStart (
         if(prAdapter->fgIsFwOwn == TRUE) {
             DBGLOG(INIT, ERROR, ("nicpmSetDriverOwn() failed!\n"));
             u4Status = WLAN_STATUS_FAILURE;
+			eFailReason = DRIVER_OWN_FAIL;
             break;
         }
 
@@ -1285,6 +1296,7 @@ wlanAdapterStart (
         if ( (u4Status = nicInitializeAdapter(prAdapter)) != WLAN_STATUS_SUCCESS ) {
             DBGLOG(INIT, ERROR, ("nicInitializeAdapter failed!\n"));
             u4Status = WLAN_STATUS_FAILURE;
+			eFailReason = INIT_ADAPTER_FAIL;
             break;
         }
 #endif
@@ -1400,6 +1412,7 @@ wlanAdapterStart (
         #endif
 
             if(u4Status != WLAN_STATUS_SUCCESS) {
+				eFailReason = RAM_CODE_DOWNLOAD_FAIL;
                 break;
             }
 
@@ -1415,6 +1428,7 @@ wlanAdapterStart (
         else {
             DBGLOG(INIT, ERROR, ("No Firmware found!\n"));
             u4Status = WLAN_STATUS_FAILURE;
+			eFailReason = RAM_CODE_DOWNLOAD_FAIL;
             break;
         }
 
@@ -1602,6 +1616,7 @@ wlanAdapterStart (
             else if(kalIsCardRemoved(prAdapter->prGlueInfo) == TRUE
                     || fgIsBusAccessFailed == TRUE) {
                 u4Status = WLAN_STATUS_FAILURE;
+				eFailReason = WAIT_FIRMWARE_READY_FAIL;
                 break;
             }
             else if(i >= CFG_RESPONSE_POLLING_TIMEOUT) {
@@ -1611,6 +1626,7 @@ wlanAdapterStart (
                 DBGLOG(INIT, ERROR, ("Waiting for Ready bit: Timeout, ID=%u\n",
                         (u4MailBox0 & 0x0000FFFF)));
                 u4Status = WLAN_STATUS_FAILURE;
+				eFailReason = WAIT_FIRMWARE_READY_FAIL;
                 break;
             }
             else {
@@ -1681,6 +1697,7 @@ wlanAdapterStart (
         RECLAIM_POWER_CONTROL_TO_PM(prAdapter, FALSE);
 
         if(u4Status != WLAN_STATUS_SUCCESS) {
+			eFailReason = WAIT_FIRMWARE_READY_FAIL;
             break;
         }
 
@@ -1862,8 +1879,26 @@ wlanAdapterStart (
     }
     else {
         // release allocated memory
-        nicReleaseAdapterMemory(prAdapter);
-    }
+		switch (eFailReason)
+		{
+		case WAIT_FIRMWARE_READY_FAIL:
+		case RAM_CODE_DOWNLOAD_FAIL:
+			DBGLOG(INIT, ERROR, ("Wait firmware ready fail or ram code download fail, FailReason: %d\n",
+					eFailReason));
+			KAL_WAKE_LOCK_DESTROY(prAdapter, &prAdapter->rTxThreadWakeLock);
+			nicRxUninitialize(prAdapter);
+			nicTxRelease(prAdapter);
+			/* System Service Uninitialization */
+		    nicUninitSystemService(prAdapter);
+		case INIT_ADAPTER_FAIL:
+		case DRIVER_OWN_FAIL:
+			nicReleaseAdapterMemory(prAdapter);
+		case ALLOC_ADAPTER_MEM_FAIL:
+			break;
+		default:
+			break;
+		}
+	}
 
     return u4Status;
 } /* wlanAdapterStart */
@@ -4536,7 +4571,7 @@ wlanQueryPermanentAddress(
 
     // header checking ..
     prHifRxHdr = (P_HIF_RX_HEADER_T)aucBuffer;
-    if(prHifRxHdr->u2PacketType != HIF_RX_PKT_TYPE_EVENT) {
+	if ((prHifRxHdr->u2PacketType & HIF_RX_HDR_PACKET_TYPE_MASK) != HIF_RX_PKT_TYPE_EVENT) {
         return WLAN_STATUS_FAILURE;
     }
 
@@ -4626,7 +4661,7 @@ wlanQueryNicCapability(
 
     // header checking ..
     prHifRxHdr = (P_HIF_RX_HEADER_T)aucBuffer;
-    if(prHifRxHdr->u2PacketType != HIF_RX_PKT_TYPE_EVENT) {
+	if ((prHifRxHdr->u2PacketType & HIF_RX_HDR_PACKET_TYPE_MASK) != HIF_RX_PKT_TYPE_EVENT) {
         return WLAN_STATUS_FAILURE;
     }
 
@@ -4965,7 +5000,7 @@ wlanQueryPdMcr(
 
     // header checking ..
     prHifRxHdr = (P_HIF_RX_HEADER_T)aucBuffer;
-    if(prHifRxHdr->u2PacketType != HIF_RX_PKT_TYPE_EVENT) {
+	if ((prHifRxHdr->u2PacketType & HIF_RX_HDR_PACKET_TYPE_MASK) != HIF_RX_PKT_TYPE_EVENT) {
         return WLAN_STATUS_FAILURE;
     }
 
