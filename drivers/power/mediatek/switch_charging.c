@@ -51,6 +51,9 @@
 #include <mach/diso.h>
 #endif
 
+#ifdef CONFIG_FORCE_FAST_CHARGE
+#include <linux/config/fastchg.h>
+#endif
  /* ============================================================ // */
  /* define */
  /* ============================================================ // */
@@ -574,6 +577,7 @@ kal_uint32 set_bat_charging_current_limit(int current_limit)
 
 void select_charging_curret(void)
 {
+
 	if (g_ftm_battery_flag) {
 		battery_log(BAT_LOG_CRTI, "[BATTERY] FTM charging : %d\r\n",
 				    charging_level_data[0]);
@@ -653,6 +657,17 @@ void select_charging_curret(void)
 #endif
 	}
 
+#ifdef CONFIG_FORCE_FAST_CHARGE
+			// fastcharge switch
+			if (force_fast_charge == 1) {
+				battery_xlog_printk(BAT_LOG_CRTI,"[BATTERY] tb - FAST CHARGE AC CURRENT SELECTION input CC: %d CC: %d \r\n", g_temp_input_CC_value, g_temp_CC_value);
+				if (g_temp_input_CC_value == 50000 && g_temp_CC_value == 50000) {
+					g_temp_input_CC_value = AC_CHARGER_CURRENT;
+					g_temp_CC_value = AC_CHARGER_CURRENT;
+					battery_xlog_printk(BAT_LOG_CRTI,"[BATTERY] tb - FAST CHARGE AC MODIFIED SELECTION input CC: %d CC: %d \r\n", g_temp_input_CC_value, g_temp_CC_value);
+				}
+			}
+#endif
 
 }
 
@@ -712,17 +727,17 @@ static void pchr_turn_on_charging(void)
 		if (get_usb_current_unlimited()) {
 			g_temp_input_CC_value = AC_CHARGER_CURRENT;
 			g_temp_CC_value = AC_CHARGER_CURRENT;
-			battery_log(BAT_LOG_FULL,
+			battery_log(BAT_LOG_CRTI,
 					    "USB_CURRENT_UNLIMITED, use AC_CHARGER_CURRENT\n");
 		} else if (g_bcct_flag == 1) {
 			select_charging_curret_bcct();
 
-			battery_log(BAT_LOG_FULL,
+			battery_log(BAT_LOG_CRTI,
 					    "[BATTERY] select_charging_curret_bcct !\n");
 		} else {
 			select_charging_curret();
 
-			battery_log(BAT_LOG_FULL, "[BATTERY] select_charging_curret !\n");
+			battery_log(BAT_LOG_CRTI, "[BATTERY] select_charging_curret !\n");
 		}
 		battery_log(BAT_LOG_CRTI,
 				    "[BATTERY] Default CC mode charging : %d, input current = %d\r\n",
