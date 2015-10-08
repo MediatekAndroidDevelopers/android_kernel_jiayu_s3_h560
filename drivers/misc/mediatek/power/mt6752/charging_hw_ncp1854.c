@@ -648,7 +648,13 @@ static void hw_bc11_dump_register(void)
    ncp1854_set_chgto_dis(0x1); //disable charge timer
     if((ncp1854_status == 0x8) || (ncp1854_status == 0x9) || (ncp1854_status == 0xA)) //WEAK WAIT, WEAK SAFE, WEAK CHARGE
         ncp1854_set_ctrl_vbat(0x1C); //VCHG = 4.0V
-
+	else{
+#ifdef HIGH_BATTERY_VOLTAGE_SUPPORT	
+		ncp1854_set_ctrl_vbat(0x29);
+#else
+		ncp1854_set_ctrl_vbat(0x24);
+#endif
+	}
    	//if(run_hw_init_once_flag)
 	//{
          ncp1854_set_ieoc(0x4); // terminate current = 200mA for ICS optimized suspend power
@@ -662,6 +668,7 @@ static void hw_bc11_dump_register(void)
 
     ncp1854_set_ctrl_vfet(0x3); // VFET = 3.4V
 
+     ncp1854_set_iinlim_ta(0x0);
 #if defined(MTK_WIRELESS_CHARGER_SUPPORT)
 		if(wireless_charger_gpio_number!=0)
 		{
@@ -729,6 +736,29 @@ static void hw_bc11_dump_register(void)
 	kal_uint32 array_size;
 	kal_uint32 set_chr_cv;	
 	
+/* superdragonpt, import HIGH_BATTERY_VOLTAGE_SUPPORT, missing on LP
+ */
+    kal_uint32 chip_status = ncp1854_get_chip_status();
+    if(chip_status != 0x05)//cc mode
+    {
+      printk("%s line %d \n",__func__,__LINE__);
+#ifdef HIGH_BATTERY_VOLTAGE_SUPPORT
+      cv_value =  4450000;
+#else
+
+#endif
+    }
+    else
+    {
+      printk("%s line %d \n",__func__,__LINE__);
+#ifdef HIGH_BATTERY_VOLTAGE_SUPPORT
+      cv_value = 4340000;
+#else
+
+#endif
+    }
+// superdragonpt,end
+
 	array_size = GETARRAYNUM(VBAT_CV_VTH);
 	set_chr_cv = bmt_find_closest_level(VBAT_CV_VTH, array_size, cv_value);
 	
@@ -831,6 +861,11 @@ static void hw_bc11_dump_register(void)
 	kal_uint32 array_size;
 	kal_uint32 register_value;
 	kal_uint32 current_value = *(kal_uint32 *)data;
+/* superdragonpt, more missing stuff
+ * TODO:Fixed input current limit
+ */
+    current_value = (current_value*6)/5;
+//superdragonpt, end
     
 	if (current_value < 60000)
 	{
@@ -843,7 +878,7 @@ static void hw_bc11_dump_register(void)
 	    array_size = GETARRAYNUM(INPUT_CS_VTH_TA);
 	    set_chr_current = bmt_find_closest_level(INPUT_CS_VTH_TA, array_size, current_value);
 	    register_value = charging_parameter_to_value(INPUT_CS_VTH_TA, array_size ,set_chr_current);	
-	    ncp1854_set_iinlim_ta(register_value);
+	    ncp1854_set_iinlim_ta(register_value+1); //superdragonpt, import from KK
 	}
         
 	//ncp1854_set_iinset_pin_en(0x0); //Input current limit and AICL control by I2C

@@ -168,6 +168,17 @@ kal_uint32 ncp1854_config_interface (kal_uint8 RegNum, kal_uint8 val, kal_uint8 
     ncp1854_reg &= ~(MASK << SHIFT);
     ncp1854_reg |= (val << SHIFT);
 
+//superdragonpt, import var
+if(RegNum == NCP1854_CON1 && val == 1 && MASK ==CON1_REG_RST_MASK && SHIFT == CON1_REG_RST_SHIFT)
+    {
+        // RESET bit
+    }
+    else if(RegNum == NCP1854_CON1)
+    {
+        ncp1854_reg &= ~0x80;	//RESET bit read returs 1, so clear it
+    }
+//superdragonpt, end
+
     ret = ncp1854_write_byte(RegNum, ncp1854_reg);
     //pr_notice("[ncp18546_config_interface] Write Reg[%x]=0x%x\n", RegNum, ncp1854_reg);
 
