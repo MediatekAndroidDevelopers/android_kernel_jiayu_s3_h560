@@ -890,10 +890,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 			    zone_is_reclaim_writeback(zone)) {
 				nr_immediate++;
 				goto keep_locked;
-
-			/* Case 2 above */
-			} else if (global_reclaim(sc) ||
-			    !PageReclaim(page) || !may_enter_fs) {
 			/*
 			 * memcg doesn't have any dirty pages throttling so we
 			 * could easily OOM just because too many pages are in
@@ -906,7 +902,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 			 * (loop masks off __GFP_IO|__GFP_FS for this reason);
 			 * but more thought would probably show more reasons.
 			 */
-			if (global_reclaim(sc) ||
+			/* Case 2 above */
+			} else if (global_reclaim(sc) ||
 			    !PageReclaim(page) || !may_enter_fs) {
 				/*
 				 * This is slightly racy - end_page_writeback()
