@@ -288,10 +288,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		if (tsk->flags & PF_KTHREAD)
 			continue;
 
-		/* if task no longer has any memory ignore it */
-		if (test_task_flag(tsk, TIF_MM_RELEASED))
-			continue;
-
 		p = find_lock_task_mm(tsk);
 		if (!p)
 			continue;
@@ -462,7 +458,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	lowmem_print(4, "lowmem_shrink %lu, %x, return %d\n",
 		     sc->nr_to_scan, sc->gfp_mask, rem);
 	rcu_read_unlock();
-    	spin_unlock(&lowmem_shrink_lock);
+    spin_unlock(&lowmem_shrink_lock);
 	return rem;
 }
 
