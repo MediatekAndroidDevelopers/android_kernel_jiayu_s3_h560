@@ -376,6 +376,8 @@ KBUILD_CPPFLAGS := -D__KERNEL__
            -fno-strict-aliasing -fno-common \
            -Wno-format-security \
            -fno-delete-null-pointer-checks \
+           -mtune=cortex-a53 \
+           -march=armv8-a \
            -std=gnu89 
 # End of Vanzo:wangfei
 
