@@ -55,7 +55,7 @@
 #define V_CHARGER_MIN 4400				// 4.4 V
 
 /* Tracking TIME */
-#define ONEHUNDRED_PERCENT_TRACKING_TIME	10	// 10 second
+#define ONEHUNDRED_PERCENT_TRACKING_TIME	15	// 10 second
 #define NPERCENT_TRACKING_TIME	   			20	// 20 second
 #define SYNC_TO_REAL_TRACKING_TIME  		60	// 60 second
 #define V_0PERCENT_TRACKING							3450 //3450mV
