@@ -21,10 +21,10 @@
 #ifdef HIGH_BATTERY_VOLTAGE_SUPPORT
 #define V_CC2TOPOFF_THRES		4200
 #define RECHARGING_VOLTAGE      4320
-//#else
-//#define V_CC2TOPOFF_THRES		4050
-//#define RECHARGING_VOLTAGE      4110
-//#endif
+#else
+#define V_CC2TOPOFF_THRES		4050
+#define RECHARGING_VOLTAGE      4110
+#endif
 // End of Vanzo:yangzhihong
 #define CHARGING_FULL_CURRENT    150	//mA
 
