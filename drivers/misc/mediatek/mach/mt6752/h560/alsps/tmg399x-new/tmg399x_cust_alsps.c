@@ -14,9 +14,9 @@ static struct alsps_hw cust_alsps_hw = {
     //.als_value = {10,200,500,1000,2000,3000,4000,5000,6000,7000,8000,9000,9000,10240,10240,10240},
 //More smoother ambient LUX values --> Transitions
     .als_level  = {10,20,40,60,80,100,150,200,400,600,1000,1500,2000,4000,6000,8000,10000,11500},
-    .als_value  = {10,100,200,300,400,500,1000,2000,3000,4000,5000,6000,7000,8000,9000,9000,10240,10240,10240},
-    .ps_threshold_high = 120,  //0~255 //Stock LP Jiayu 80
-    .ps_threshold_low = 90,   //0~255 //Stock LP Jiayu 50
+    .als_value  = {10,50,75,100,150,200,250,300,400,500,1000,2000,3000,4000,5000,6000,7000,8000,9000,9000,10240,10240,10240},
+    .ps_threshold_high = 110,  //0~255 //Stock LP Jiayu 80
+    .ps_threshold_low = 70,   //0~255 //Stock LP Jiayu 50
 };
 struct alsps_hw *tmg399x_get_cust_alsps_hw(void) {
     return &cust_alsps_hw;
