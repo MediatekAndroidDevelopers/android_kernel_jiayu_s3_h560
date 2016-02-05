@@ -140,7 +140,7 @@ kal_int32 FGCurrentIndex = 0;
 kal_int32 FGCurrentSum = 0;
 kal_int32 gFG_current_AVG = 0;
 #endif
-kal_int32 g_tracking_point = CUST_TRACKING_POINT;
+kal_int32 g_tracking_point = CUST_TRACKING_POINT; // this is 1
 kal_int32 g_rtc_fg_soc = 0;
 kal_int32 g_I_SENSE_offset = 0;
 
@@ -1515,14 +1515,14 @@ void dod_init(void)
 
 	gfg_percent_check_point = gFG_capacity;
 
-#if defined(CHANGE_TRACKING_POINT)
+#if defined(CHANGE_TRACKING_POINT) //isn't defined
 	gFG_15_vlot = fgauge_read_v_by_capacity((100 - g_tracking_point));
 	bm_print(BM_LOG_CRTI, "[FGADC] gFG_15_vlot = %dmV\n", gFG_15_vlot);
 #else
 	/* gFG_15_vlot = fgauge_read_v_by_capacity(86); //14% */
-	gFG_15_vlot = fgauge_read_v_by_capacity((100 - g_tracking_point));
+	gFG_15_vlot = fgauge_read_v_by_capacity((100 - g_tracking_point)); //seems like someone changed the code from fixed value to this...but the variable has value 1...
 	bm_print(BM_LOG_CRTI, "[FGADC] gFG_15_vlot = %dmV\n", gFG_15_vlot);
-	if ((gFG_15_vlot > 3800) || (gFG_15_vlot < 3600)) {
+	if ((gFG_15_vlot > 3800) || (gFG_15_vlot < 3600)) { // i suppose it is always resetted to 3700 because capacity(99) > 3800 for sure...
 		bm_print(BM_LOG_CRTI, "[FGADC] gFG_15_vlot(%d) over range, reset to 3700\n",
 			 gFG_15_vlot);
 		gFG_15_vlot = 3700;
@@ -3104,9 +3104,9 @@ kal_int32 battery_meter_get_battery_nPercent_zcv(void)
 
 kal_int32 battery_meter_get_battery_nPercent_UI_SOC(void)
 {
-#if defined(CONFIG_POWER_EXT)
+#if defined(CONFIG_POWER_EXT) //not defined
 	return 15;
-#else
+#else // it's returning 1 here
 	return g_tracking_point;	/* tracking point */
 #endif
 }
