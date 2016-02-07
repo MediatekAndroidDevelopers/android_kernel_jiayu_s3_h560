@@ -2663,15 +2663,15 @@ kal_int32 battery_meter_get_charging_current(void)
 #ifdef DISABLE_CHARGING_CURRENT_MEASURE
 	return 0;
 #elif !defined (EXTERNAL_SWCHR_SUPPORT)
-	kal_int32 ADC_BAT_SENSE_tmp[10] =
-	    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	kal_int32 ADC_BAT_SENSE_tmp[20] =
+	    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	kal_int32 ADC_BAT_SENSE_sum = 0;
 	kal_int32 ADC_BAT_SENSE = 0;
-	kal_int32 ADC_I_SENSE_tmp[10] =
-	    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	kal_int32 ADC_I_SENSE_tmp[20] =
+	    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	kal_int32 ADC_I_SENSE_sum = 0;
 	kal_int32 ADC_I_SENSE = 0;
-	int repeat = 10;
+	int repeat = 20;
 	int i = 0;
 	int j = 0;
 	kal_int32 temp = 0;
@@ -2727,14 +2727,18 @@ kal_int32 battery_meter_get_charging_current(void)
 	bm_print(BM_LOG_FULL, "\r\n");
 
 	ADC_BAT_SENSE_sum -= ADC_BAT_SENSE_tmp[0];
-	ADC_BAT_SENSE_sum -= ADC_BAT_SENSE_tmp[9];
-	ADC_BAT_SENSE = ADC_BAT_SENSE_sum / (repeat - 2);
+	ADC_BAT_SENSE_sum -= ADC_BAT_SENSE_tmp[1];
+	ADC_BAT_SENSE_sum -= ADC_BAT_SENSE_tmp[18];
+	ADC_BAT_SENSE_sum -= ADC_BAT_SENSE_tmp[19];
+	ADC_BAT_SENSE = ADC_BAT_SENSE_sum / (repeat - 4);
 
 	bm_print(BM_LOG_FULL, "[g_Get_I_Charging] ADC_BAT_SENSE=%d\r\n", ADC_BAT_SENSE);
 
 	ADC_I_SENSE_sum -= ADC_I_SENSE_tmp[0];
-	ADC_I_SENSE_sum -= ADC_I_SENSE_tmp[9];
-	ADC_I_SENSE = ADC_I_SENSE_sum / (repeat - 2);
+	ADC_I_SENSE_sum -= ADC_I_SENSE_tmp[1];
+	ADC_I_SENSE_sum -= ADC_I_SENSE_tmp[18];
+	ADC_I_SENSE_sum -= ADC_I_SENSE_tmp[19];
+	ADC_I_SENSE = ADC_I_SENSE_sum / (repeat - 4);
 
 	bm_print(BM_LOG_FULL, "[g_Get_I_Charging] ADC_I_SENSE(Before)=%d\r\n", ADC_I_SENSE);
 
