@@ -1,6 +1,6 @@
 include $(srctree)/drivers/misc/mediatek/Makefile.custom
 
-obj-$(CONFIG_MTK_SMART_BATTERY) += battery_meter.o battery_common.o
+obj-$(CONFIG_MTK_SMART_BATTERY) += battery_meter.o battery_common.o charge_level.o
 
 ifeq ($(CONFIG_MTK_FAN5402_SUPPORT),y)
     obj-$(CONFIG_MTK_SMART_BATTERY) += switch_charging.o
@@ -40,7 +40,7 @@ else
                                             ifeq ($(CONFIG_MTK_RT9536_SUPPORT),y)
                                                 obj-$(CONFIG_MTK_SMART_BATTERY) += switch_charging.o
                                             else
-                                                obj-$(CONFIG_MTK_SMART_BATTERY) += linear_charging.o
+                                                obj-$(CONFIG_MTK_SMART_BATTERY) += linear_charging.o # this is not built
                                             endif
                                         endif
                                     endif
