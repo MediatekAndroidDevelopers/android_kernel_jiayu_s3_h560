@@ -23,7 +23,7 @@ static ssize_t charge_level_ac_show(struct kobject *kobj, struct kobj_attribute 
 {
 
 	// print current value
-	return sprintf(buf, "%d\n", ac_level / 100 );
+	return sprintf(buf, "%d", ac_level / 100 );
 
 }
 
@@ -60,7 +60,7 @@ static ssize_t charge_level_usb_show(struct kobject *kobj, struct kobj_attribute
 {
 
 	// print current value
-	return sprintf(buf, "%d\n", usb_level / 100);
+	return sprintf(buf, "%d", usb_level / 100);
 
 }
 
@@ -96,7 +96,7 @@ static ssize_t quick_charge_enable_show(struct kobject *kobj, struct kobj_attrib
 {
 
 	// print current value
-	return sprintf(buf, "%d\n", qc_enable);
+	return sprintf(buf, "%d", qc_enable);
 
 }
 
@@ -109,7 +109,6 @@ static ssize_t quick_charge_enable_store(struct kobject *kobj, struct kobj_attri
 
 	// read value from input buffer
 	ret = sscanf(buf, "%d", &val);
-	val = val * 100;
 
 	// check whether value is within the valid ranges and adjust accordingly
 	if (val > 1 || val < 0)
@@ -133,7 +132,7 @@ static struct kobj_attribute charge_level_usb_attribute =
 __ATTR(charge_level_usb, 0666, charge_level_usb_show, charge_level_usb_store);
 
 static struct kobj_attribute quick_charge_enable_attribute =
-__ATTR(charge_level_ac, 0666, quick_charge_enable_show, quick_charge_enable_store);
+__ATTR(quick_charge_enable, 0666, quick_charge_enable_show, quick_charge_enable_store);
 
 static struct attribute *charge_level_attrs[] = {
 &charge_level_ac_attribute.attr,
