@@ -26,3 +26,5 @@ extern int usb_level;
 
 #define USB_CHARGE_LEVEL_MIN 100 * 100
 #define USB_CHARGE_LEVEL_MAX 1000 * 100
+
+extern int qc_enable;

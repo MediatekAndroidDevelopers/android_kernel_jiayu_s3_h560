@@ -582,7 +582,6 @@ kal_uint32 set_bat_charging_current_limit(int current_limit)
 
 void select_charging_curret(void)
 {
-
 	if (g_ftm_battery_flag) {
 		battery_log(BAT_LOG_CRTI, "[BATTERY] FTM charging : %d\r\n",
 				    charging_level_data[0]);
@@ -592,7 +591,10 @@ void select_charging_curret(void)
 			g_temp_input_CC_value = CHARGE_CURRENT_500_00_MA;
 		} else {
 			g_temp_input_CC_value = CHARGE_CURRENT_MAX;
-			g_temp_CC_value = ac_level;//AC_CHARGER_CURRENT;
+			if(qc_enable)
+			    g_temp_CC_value = ac_level;
+			else
+			    g_temp_CC_value = 1000;
 
 			battery_log(BAT_LOG_CRTI, "[BATTERY] set_ac_current \r\n");
 		}
@@ -617,8 +619,13 @@ void select_charging_curret(void)
 			}
 #else
 			{
-				g_temp_input_CC_value = usb_level;//USB_CHARGER_CURRENT;
-				g_temp_CC_value = usb_level;//USB_CHARGER_CURRENT;
+			    if(qc_enable) {
+			    	g_temp_input_CC_value = usb_level;
+			    	g_temp_CC_value = usb_level;
+			    } else {
+			    	g_temp_input_CC_value = 500;
+			    	g_temp_CC_value = 500;
+			    }
 			}
 #endif
 		} else if (BMT_status.charger_type == NONSTANDARD_CHARGER) {
@@ -626,8 +633,14 @@ void select_charging_curret(void)
 			g_temp_CC_value = NON_STD_AC_CHARGER_CURRENT;
 
 		} else if (BMT_status.charger_type == STANDARD_CHARGER) {
-			g_temp_input_CC_value = ac_level;//AC_CHARGER_CURRENT;
-			g_temp_CC_value = ac_level;//AC_CHARGER_CURRENT;
+			if(qc_enable) {
+			    g_temp_input_CC_value = ac_level;
+			    g_temp_CC_value = ac_level;
+			} else {
+			    g_temp_input_CC_value = 1000;
+			    g_temp_CC_value = 1000;
+			}
+
 #if defined(CONFIG_MTK_PUMP_EXPRESS_PLUS_SUPPORT)
         		if(is_ta_connect == KAL_TRUE)
         			set_ta_charging_current();
@@ -651,8 +664,13 @@ void select_charging_curret(void)
 
 		#if defined(CONFIG_MTK_DUAL_INPUT_CHARGER_SUPPORT)
 		if (DISO_data.diso_state.cur_vdc_state == DISO_ONLINE) {
-			g_temp_input_CC_value = ac_level;//AC_CHARGER_CURRENT;
-			g_temp_CC_value = ac_level;//AC_CHARGER_CURRENT;
+			if(qc_enable) {
+			    g_temp_input_CC_value = ac_level;
+			    g_temp_CC_value = ac_level;
+			} else {
+			    g_temp_input_CC_value = 1000;
+			    g_temp_CC_value = 1000;
+			}
 		}
 		#endif
 

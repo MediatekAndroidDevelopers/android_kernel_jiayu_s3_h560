@@ -92,6 +92,7 @@
 
 int ac_level = AC_CHARGE_LEVEL_DEFAULT;    // Set AC default charge level
 int usb_level  = USB_CHARGE_LEVEL_DEFAULT; // Set USB default charge level
+int qc_enable = 0;
 
 /* ////////////////////////////////////////////////////////////////////////////// */
 /* Battery Logging Entry */
@@ -2105,13 +2106,19 @@ static void mt_battery_average_method_init(BATTERY_AVG_ENUM type, kal_uint32 *bu
 			if ((BMT_status.charger_type == STANDARD_CHARGER) || 
 			    (DISO_data.diso_state.cur_vdc_state == DISO_ONLINE)) {
 			#endif
-				data = ac_level / 100;
+				if(qc_enable)
+				    data = ac_level / 100;
+				else
+				    data = 1000;
 			} else if (BMT_status.charger_type == CHARGING_HOST) {
 				data = CHARGING_HOST_CHARGER_CURRENT / 100;
 			} else if (BMT_status.charger_type == NONSTANDARD_CHARGER)
 				data = NON_STD_AC_CHARGER_CURRENT / 100;	/* mA */
 			else	/* USB */
-				data = usb_level / 100;	/* mA */
+				if(qc_enable)
+				    data = usb_level / 100;
+				else
+				    data = 500;
             #ifdef AVG_INIT_WITH_R_SENSE
             data = AVG_INIT_WITH_R_SENSE(data);
             #endif
@@ -2125,13 +2132,19 @@ static void mt_battery_average_method_init(BATTERY_AVG_ENUM type, kal_uint32 *bu
 			if ((BMT_status.charger_type == STANDARD_CHARGER) || 
 			    (DISO_data.diso_state.cur_vdc_state == DISO_ONLINE)) {
 			#endif			
-				data = ac_level / 100;
+				if(qc_enable)
+				    data = ac_level / 100;
+				else
+				    data = 1000;
 			} else if (BMT_status.charger_type == CHARGING_HOST) {
 				data = CHARGING_HOST_CHARGER_CURRENT / 100;
 			} else if (BMT_status.charger_type == NONSTANDARD_CHARGER)
 				data = NON_STD_AC_CHARGER_CURRENT / 100;	/* mA */
 			else	/* USB */
-				data = usb_level / 100;	/* mA */
+				if(qc_enable)
+				    data = usb_level / 100;
+				else
+				    data = 500;
             #ifdef AVG_INIT_WITH_R_SENSE
             data = AVG_INIT_WITH_R_SENSE(data);
             #endif
