@@ -23,7 +23,7 @@ static ssize_t charge_level_ac_show(struct kobject *kobj, struct kobj_attribute 
 {
 
 	// print current value
-	return sprintf(buf, "%d", ac_level / 100 );
+	return sprintf(buf, "%d\n", ac_level / 100 );
 
 }
 
@@ -60,7 +60,7 @@ static ssize_t charge_level_usb_show(struct kobject *kobj, struct kobj_attribute
 {
 
 	// print current value
-	return sprintf(buf, "%d", usb_level / 100);
+	return sprintf(buf, "%d\n", usb_level / 100);
 
 }
 
@@ -94,9 +94,8 @@ static ssize_t charge_level_usb_store(struct kobject *kobj, struct kobj_attribut
 
 static ssize_t quick_charge_enable_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-
 	// print current value
-	return sprintf(buf, "%d", qc_enable);
+	return sprintf(buf, "%d\n", qc_enable);
 
 }
 
@@ -121,7 +120,6 @@ static ssize_t quick_charge_enable_store(struct kobject *kobj, struct kobj_attri
 
 	return count;
 }
-
 
 /* Initialize charge level sysfs folder */
 

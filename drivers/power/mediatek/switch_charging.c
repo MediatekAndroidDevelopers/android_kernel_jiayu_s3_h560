@@ -594,7 +594,7 @@ void select_charging_curret(void)
 			if(qc_enable)
 			    g_temp_CC_value = ac_level;
 			else
-			    g_temp_CC_value = 1000;
+			    g_temp_CC_value = AC_CHARGE_LEVEL_DEFAULT;
 
 			battery_log(BAT_LOG_CRTI, "[BATTERY] set_ac_current \r\n");
 		}
@@ -623,8 +623,8 @@ void select_charging_curret(void)
 			    	g_temp_input_CC_value = usb_level;
 			    	g_temp_CC_value = usb_level;
 			    } else {
-			    	g_temp_input_CC_value = 500;
-			    	g_temp_CC_value = 500;
+			    	g_temp_input_CC_value = USB_CHARGE_LEVEL_DEFAULT;
+			    	g_temp_CC_value = USB_CHARGE_LEVEL_DEFAULT;
 			    }
 			}
 #endif
@@ -637,8 +637,8 @@ void select_charging_curret(void)
 			    g_temp_input_CC_value = ac_level;
 			    g_temp_CC_value = ac_level;
 			} else {
-			    g_temp_input_CC_value = 1000;
-			    g_temp_CC_value = 1000;
+			    g_temp_input_CC_value = AC_CHARGE_LEVEL_DEFAULT;
+			    g_temp_CC_value = AC_CHARGE_LEVEL_DEFAULT;
 			}
 
 #if defined(CONFIG_MTK_PUMP_EXPRESS_PLUS_SUPPORT)
@@ -668,13 +668,13 @@ void select_charging_curret(void)
 			    g_temp_input_CC_value = ac_level;
 			    g_temp_CC_value = ac_level;
 			} else {
-			    g_temp_input_CC_value = 1000;
-			    g_temp_CC_value = 1000;
+			    g_temp_input_CC_value = AC_CHARGE_LEVEL_DEFAULT;
+			    g_temp_CC_value = AC_CHARGE_LEVEL_DEFAULT;
 			}
 		}
 		#endif
 
-		printk("Fast-Charge: Using charge rate %d mA\n", g_temp_input_CC_value);
+		printk("Fast-Charge (Using charge rate %d mA\n", g_temp_input_CC_value / 100);
 
 #if defined(CONFIG_MTK_JEITA_STANDARD_SUPPORT)
 		set_jeita_charging_current();

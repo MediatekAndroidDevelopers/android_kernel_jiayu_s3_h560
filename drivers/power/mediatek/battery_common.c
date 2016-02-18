@@ -2109,7 +2109,7 @@ static void mt_battery_average_method_init(BATTERY_AVG_ENUM type, kal_uint32 *bu
 				if(qc_enable)
 				    data = ac_level / 100;
 				else
-				    data = 1000;
+				    data = AC_CHARGE_LEVEL_DEFAULT / 100;
 			} else if (BMT_status.charger_type == CHARGING_HOST) {
 				data = CHARGING_HOST_CHARGER_CURRENT / 100;
 			} else if (BMT_status.charger_type == NONSTANDARD_CHARGER)
@@ -2118,7 +2118,7 @@ static void mt_battery_average_method_init(BATTERY_AVG_ENUM type, kal_uint32 *bu
 				if(qc_enable)
 				    data = usb_level / 100;
 				else
-				    data = 500;
+				    data = USB_CHARGE_LEVEL_DEFAULT / 100;
             #ifdef AVG_INIT_WITH_R_SENSE
             data = AVG_INIT_WITH_R_SENSE(data);
             #endif
@@ -2135,7 +2135,7 @@ static void mt_battery_average_method_init(BATTERY_AVG_ENUM type, kal_uint32 *bu
 				if(qc_enable)
 				    data = ac_level / 100;
 				else
-				    data = 1000;
+				    data = AC_CHARGE_LEVEL_DEFAULT / 100;
 			} else if (BMT_status.charger_type == CHARGING_HOST) {
 				data = CHARGING_HOST_CHARGER_CURRENT / 100;
 			} else if (BMT_status.charger_type == NONSTANDARD_CHARGER)
@@ -2144,7 +2144,7 @@ static void mt_battery_average_method_init(BATTERY_AVG_ENUM type, kal_uint32 *bu
 				if(qc_enable)
 				    data = usb_level / 100;
 				else
-				    data = 500;
+				    data = USB_CHARGE_LEVEL_DEFAULT / 100;
             #ifdef AVG_INIT_WITH_R_SENSE
             data = AVG_INIT_WITH_R_SENSE(data);
             #endif
