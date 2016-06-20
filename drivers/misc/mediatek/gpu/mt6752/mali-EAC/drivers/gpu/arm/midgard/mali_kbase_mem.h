@@ -695,4 +695,6 @@ int kbase_report_gpu_memory_usage();
 
 int kbase_report_gpu_memory_peak();
 
+bool kbase_dump_gpu_memory_usage(void);
+
 #endif				/* _KBASE_MEM_H_ */
