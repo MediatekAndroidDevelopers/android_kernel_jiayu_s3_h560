@@ -8,10 +8,15 @@ include $(srctree)/drivers/misc/mediatek/Makefile.custom
 # Vanzo:wangfei on: Tue, 10 Mar 2015 15:57:44 +0800
 # add lens framework
 
-project_name:=$(shell echo $(VANZO_INNER_PROJECT_NAME))
+project_name:=$(shell echo $(CONFIG_VANZO_INNER_PROJECT_NAME))
 ifneq ($(project_name),)
 platform=$(shell echo $(MTK_PLATFORM) | tr [A-Z] [a-z])
-custom_kernel_lens:= $(addprefix $(platform)/,$(addsuffix /, $(shell echo $(CUSTOM_KERNEL_LENS))))
+
+ifneq ($(strip $(CUSTOM_KERNEL_LENS)),)
+CONFIG_CUSTOM_KERNEL_LENS:=$(CUSTOM_KERNEL_LENS)
+endif
+
+custom_kernel_lens:= $(addprefix $(platform)/,$(addsuffix /, $(shell echo $(CONFIG_CUSTOM_KERNEL_LENS))))
 
 $(info "wyl custom_kernel_lens:$(custom_kernel_lens)")
 obj-y += $(custom_kernel_lens)

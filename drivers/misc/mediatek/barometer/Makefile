@@ -3,7 +3,7 @@ include $(srctree)/drivers/misc/mediatek/Makefile.custom
 # In case the platform does NOT support this type of sensors
 obj-y   +=  barometer.o barometer_factory.o
 # Vanzo:wangfei on: Wed, 12 Nov 2014 21:06:42 +0800
-project_name:=$(shell echo $(VANZO_INNER_PROJECT_NAME))
+project_name:=$(shell echo $(CONFIG_VANZO_INNER_PROJECT_NAME))
 
 ifneq ($(project_name),)
 custom_kernel_barometer:= $(addsuffix /, $(shell echo $(CUSTOM_KERNEL_BAROMETER)))

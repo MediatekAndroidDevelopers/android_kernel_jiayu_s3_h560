@@ -130,7 +130,7 @@ extern unsigned char gtp_hotknot_calibration_section0[];
 #define GTP_CONFIG_MAX_LENGTH       240
 #define GTP_CHARGER_SWITCH    0       // charger plugin & plugout detect
 #define GTP_WITH_PEN          0       
-#ifdef VANZO_TOUCHPANEL_GESTURES_SUPPORT
+#ifdef CONFIG_VANZO_TOUCHPANEL_GESTURES_SUPPORT
 #define GTP_GESTURE_WAKEUP    1
 #else
 #define GTP_GESTURE_WAKEUP    0

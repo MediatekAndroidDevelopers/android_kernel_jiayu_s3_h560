@@ -39,7 +39,10 @@
 #include "epl2182.h"
 
 #define MTK_LTE         1
-//#define MT6735
+
+#ifdef CONFIG_ARCH_MT6752
+#define MT6752 1
+#endif
 
 #if MTK_LTE
 #include <alsps.h>

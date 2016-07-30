@@ -676,7 +676,7 @@ static int hwmsen_enable(struct hwmdev_object *obj, int sensor, int enable)
 		obj->active_data_sensor &= ~sensor_type;
 		if((obj->active_sensor & sensor_type) == 0)	// no no-data active
 		{
-#ifdef CONFIG_CUSTOM_KERNEL_ALSPS
+#ifdef CONFIG_CUST_KERNEL_ALSPS
 			if(sensor == 4 && aal_use == 1){
 				HWM_ERR("AAL is used ingnore common light disable\n");
 				err = 0;

@@ -2357,7 +2357,7 @@ static kal_uint32 open(void)
 	
 	/* initail sequence write in  */
 	sensor_init();
-    if(0 == strncmp(VANZO_MAIN_CAM_ROTATION, "180", 3))
+    if(0 == strncmp(CONFIG_VANZO_MAIN_CAM_ROTATION, "180", 3))
     {
       set_mirror_flip(IMAGE_NORMAL);
     }

@@ -261,21 +261,36 @@ config MTK_AUTO_DETECT_ALSPS
 	  project and be auto detected by setting this option to yes
 
 # Custom
-config CUSTOM_KERNEL_ACCELEROMETER
-	bool "CUSTOM_KERNEL_ACCELEROMETER"
+config CUST_KERNEL_ACCELEROMETER
+	bool "CUST_KERNEL_ACCELEROMETER"
 	help
 	  accelerometer sensor to detect accelerometer from x y z axis.
+	  
+config CUSTOM_KERNEL_ACCELEROMETER_NAME
+	string "CUSTOM_KERNEL_ACCELEROMETER_NAME"
+	help
+	  Name of ALSPS sensor driver to be used
 
-config CUSTOM_KERNEL_GYROSCOPE
-	bool "CUSTOM_KERNEL_GYROSCOPE"
+config CUST_KERNEL_GYROSCOPE
+	bool "CUST_KERNEL_GYROSCOPE"
 	help
 	  gyroscope driver
-
-config CUSTOM_KERNEL_ALSPS
-	bool "CUSTOM_KERNEL_ALSPS"
+	  
+config CUSTOM_KERNEL_GYROSCOPE_NAME
+	string "CUSTOM_KERNEL_GYROSCOPE_NAME"
 	help
-	  ALSPS sensor driverto detect ambint light and the object is close
+	  Name of GYROSCOPE sensor driver to be used
+
+config CUST_KERNEL_ALSPS
+	bool "CUST_KERNEL_ALSPS"
+	help
+	  ALSPS sensor driver to detect ambint light and the object is close
 	  or far awary from device
+	  
+config CUSTOM_KERNEL_ALSPS_NAME
+	string "CUSTOM_KERNEL_ALSPS_NAME"
+	help
+	  Name of ALSPS sensor driver to be used
 
 config CUSTOM_SEC_AUTH_SUPPORT
 	bool "CUSTOM_SEC_AUTH_SUPPORT"
@@ -283,11 +298,16 @@ config CUSTOM_SEC_AUTH_SUPPORT
 	  Support customer to implement and apply their own RSA security
 	  functions
 
-config CUSTOM_KERNEL_MAGNETOMETER
-	bool "CUSTOM_KERNEL_MAGNETOMETER"
+config CUST_KERNEL_MAGNETOMETER
+	bool "CUST_KERNEL_MAGNETOMETER"
 	help
 	  compass driver to detect compass raw data and report orientatino
 	  data
+	  
+config CUSTOM_KERNEL_MAGNETOMETER_NAME
+	string "CUSTOM_KERNEL_MAGNETOMETER_NAME"
+	help
+	  Name of MAGNETOMETER sensor driver to be used
 
 config CUSTOM_KERNEL_BAROMETER
 	bool "CUSTOM_KERNEL_BAROMETER"
@@ -389,12 +409,39 @@ config CUSTOM_KERNEL_LCM
 	string "CUSTOM_KERNEL_LCM"
 	help
 	  To choose kernel LCM driver name
+	  
+config CUSTOM_KERNEL_TOUCHPANEL
+	string "CUSTOM_KERNEL_TOUCHPANEL"
+	help
+	  To choose kernel TOUCHPANEL driver name
+	  
+config CUSTOM_KERNEL_HALL
+	string "CUSTOM_KERNEL_HALL"
+	help
+	  To choose kernel HALL driver name 
 
-config CUSTOM_KERNEL_FLASHLIGHT
-	string "CUSTOM_KERNEL_FLASHLIGHT"
+config CUST_KERNEL_FLASHLIGHT
+	string "CUST_KERNEL_FLASHLIGHT"
 	help
 	  Kernel space cameara flashlight driver. You can use this driver
 	  choose cameara flashlight type.
+	  
+config CUSTOM_KERNEL_FLASHLIGHT_NAME
+	string "CUSTOM_KERNEL_FLASHLIGHT_NAME"
+	help
+	  Kernel space cameara flashlight driver. You can use this driver
+	  choose cameara flashlight type.
+	  
+config CUSTOM_KERNEL_LEDS
+	string "CUSTOM_KERNEL_LEDS"
+	help
+	  To choose kernel LEDS driver name 
+	  
+config CUSTOM_KERNEL_LENS
+	string "CUSTOM_KERNEL_LENS"
+	help
+	  To choose kernel CUSTOM_KERNEL_LENS
+
 config CUSTOM_KERNEL_EXTMD
 	string "CUSTOM_KERNEL_EXTMD"
 	default ""
@@ -448,6 +495,27 @@ config MTK_TC7_FEATURE
 config MTK_TC1_FM_AT_SUSPEND
 	bool "MTK_TC1_FM_AT_SUSPEND"
 	default n
+	
+config VANZO_KERNEL_BREATHLIGHT_BY_VALUE
+	string "VANZO_KERNEL_BREATHLIGHT_BY_VALUE"
+	help
+	  To choose VANZO_KERNEL_BREATHLIGHT_BY_VALUE
+	
+config VANZO_MAIN_CAM_ROTATION
+	string "VANZO_MAIN_CAM_ROTATION"
+	help
+	  To choose VANZO_MAIN_CAM_ROTATION
+
+config VANZO_INNER_PROJECT_NAME
+	string "VANZO_INNER_PROJECT_NAME"
+	help
+	  To choose VANZO_INNER_PROJECT_NAME
+	  
+config VANZO_TOUCHPANEL_GESTURES_SUPPORT
+	bool "VANZO_TOUCHPANEL_GESTURES_SUPPORT"
+	default n
+	help
+	  This option is used to enable 'SmwartWake' kernel support
 
 source "drivers/misc/mediatek/Kconfig.kernel"
 source "drivers/misc/mediatek/Kconfig.drivers"
