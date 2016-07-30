@@ -649,7 +649,7 @@ static void hw_bc11_dump_register(void)
     if((ncp1854_status == 0x8) || (ncp1854_status == 0x9) || (ncp1854_status == 0xA)) //WEAK WAIT, WEAK SAFE, WEAK CHARGE
         ncp1854_set_ctrl_vbat(0x1C); //VCHG = 4.0V
 	else{
-#ifdef HIGH_BATTERY_VOLTAGE_SUPPORT	
+#ifdef CONFIG_HIGH_BATTERY_VOLTAGE_SUPPORT	
 		ncp1854_set_ctrl_vbat(0x29);
 #else
 		ncp1854_set_ctrl_vbat(0x24);
@@ -736,13 +736,13 @@ static void hw_bc11_dump_register(void)
 	kal_uint32 array_size;
 	kal_uint32 set_chr_cv;	
 	
-/* superdragonpt, import HIGH_BATTERY_VOLTAGE_SUPPORT, missing on LP
+/* superdragonpt, import CONFIG_HIGH_BATTERY_VOLTAGE_SUPPORT, missing on LP
  */
     kal_uint32 chip_status = ncp1854_get_chip_status();
     if(chip_status != 0x05)//cc mode
     {
       printk("%s line %d \n",__func__,__LINE__);
-#ifdef HIGH_BATTERY_VOLTAGE_SUPPORT
+#ifdef CONFIG_HIGH_BATTERY_VOLTAGE_SUPPORT
       cv_value =  4450000;
 #else
 
@@ -751,7 +751,7 @@ static void hw_bc11_dump_register(void)
     else
     {
       printk("%s line %d \n",__func__,__LINE__);
-#ifdef HIGH_BATTERY_VOLTAGE_SUPPORT
+#ifdef CONFIG_HIGH_BATTERY_VOLTAGE_SUPPORT
       cv_value = 4340000;
 #else
 

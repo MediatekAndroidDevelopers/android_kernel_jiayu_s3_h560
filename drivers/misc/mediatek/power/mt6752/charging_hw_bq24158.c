@@ -498,7 +498,7 @@ static void hw_bc11_dump_register(void)
 	
 	mt6325_upmu_set_rg_usbdl_rst(1);		//force leave USBDL mode
    
-	#if defined(HIGH_BATTERY_VOLTAGE_SUPPORT)
+	#if defined(CONFIG_HIGH_BATTERY_VOLTAGE_SUPPORT)
         bq24158_config_interface_liao(0x06,0x77); // ISAFE = 1250mA, VSAFE = 4.34V
     #else
         bq24158_config_interface_liao(0x06,0x70);

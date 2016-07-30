@@ -603,7 +603,7 @@ static int bq24158_driver_probe(struct i2c_client *client, const struct i2c_devi
 /* Vanzo: wuzhiyong on Mon 15 Jun 17:00:00 +8000
  * 0x06 first init
  */
-	#if defined(HIGH_BATTERY_VOLTAGE_SUPPORT)
+	#if defined(CONFIG_HIGH_BATTERY_VOLTAGE_SUPPORT)
         bq24158_config_interface_liao(0x06,0x77); // ISAFE = 1250mA, VSAFE = 4.34V
     #else
         bq24158_config_interface_liao(0x06,0x70);

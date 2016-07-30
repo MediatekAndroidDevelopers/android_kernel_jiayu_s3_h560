@@ -227,7 +227,7 @@ static kal_uint32 is_chr_det(void)
 //	upmu_set_rg_usbdl_set(0);       //force leave USBDL mode
 //	upmu_set_rg_usbdl_rst(1);		//force leave USBDL mode
    
-	#if defined(HIGH_BATTERY_VOLTAGE_SUPPORT)
+	#if defined(CONFIG_HIGH_BATTERY_VOLTAGE_SUPPORT)
 	fan5405_reg_config_interface(0x06,0x77); // ISAFE = 1250mA, VSAFE = 4.34V
 	#else
 	fan5405_reg_config_interface(0x06,0x70);

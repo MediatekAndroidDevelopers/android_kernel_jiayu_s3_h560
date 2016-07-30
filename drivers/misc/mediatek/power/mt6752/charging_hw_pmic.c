@@ -184,7 +184,7 @@ static kal_uint32 charging_hw_init(void *data)
     mt6325_upmu_set_rg_bc11_rst(1);        //BC11_RST
 
     mt6325_upmu_set_rg_vbat_ov_en(1);      //VBAT_OV_EN
-#ifdef HIGH_BATTERY_VOLTAGE_SUPPORT
+#ifdef CONFIG_HIGH_BATTERY_VOLTAGE_SUPPORT
     mt6325_upmu_set_rg_vbat_ov_vth(0x3);   //VBAT_OV_VTH, 4.4V,
 #else
     mt6325_upmu_set_rg_vbat_ov_vth(0x2);   //VBAT_OV_VTH, 4.3V,
