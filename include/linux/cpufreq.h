@@ -410,10 +410,12 @@ extern struct cpufreq_governor cpufreq_gov_interactive;
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVEPLUS)
 extern struct cpufreq_governor cpufreq_gov_interactiveplus;
 #define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_interactiveplus)
-
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_PEGASUSQ)
 extern struct cpufreq_governor cpufreq_gov_pegasusq;
 #define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_pegasusq)
+#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_ALUCARD)
+extern struct cpufreq_governor cpufreq_gov_alucard;
+#define CPUFREQ_DEFAULT_GOVERNOR  (&cpufreq_gov_alucard)
 
 #endif
 
