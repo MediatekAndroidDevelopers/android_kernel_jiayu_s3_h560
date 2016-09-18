@@ -154,11 +154,6 @@ config CPU_FREQ_DEFAULT_GOV_PEGASUSQ
         help
           Use the CPUFreq governor 'pegasusq' as default
 
-config CPU_FREQ_DEFAULT_GOV_ALUCARD
-	bool "alucard"
-	select CPU_FREQ_GOV_ALUCARD
-	help
-
 config CPU_FREQ_DEFAULT_GOV_WHEATLEY
 	bool "wheatley"
 	select CPU_FREQ_GOV_WHEATLEY
@@ -323,14 +318,6 @@ config CPU_FREQ_GOV_HOTPLUG
 
 config CPU_FREQ_GOV_PEGASUSQ
 	tristate "'pegasusq' cpufreq policy governor"
-
-config CPU_FREQ_GOV_ALUCARD
-	tristate "'alucard' cpufreq governor"
-	depends on CPU_FREQ
-	help
-          For details, take a look at linux/Documentation/cpu-freq.
-
-          If in doubt, say N.
 
 config CPU_FREQ_GOV_WHEATLEY
 	tristate "'wheatley' cpufreq governor"
