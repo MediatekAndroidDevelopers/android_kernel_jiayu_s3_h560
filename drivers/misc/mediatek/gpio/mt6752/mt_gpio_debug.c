@@ -692,7 +692,7 @@ ssize_t mt_gpio_store_pin(struct device* dev, struct device_attribute *attr,
 #endif
     int mode, pullsel, dout, pullen, dir, ies, smt;
     u32 num,src,div;
-	char md_str[128]="GPIO_MD_TEST";
+	//char md_str[128]="GPIO_MD_TEST";
     //struct mt_gpio_obj *obj = (struct mt_gpio_obj*)dev_get_drvdata(dev);    
     if (!strncmp(buf, "-h", 2)) {
         GPIOMSG("cat pin  #show all pin setting\n");
