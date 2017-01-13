@@ -4,6 +4,8 @@
 /* shared DRAM */
 #define CMDQ_SEC_SHARED_IRQ_RAISED_OFFSET    (0x0) /* bit x = 1 means thread x raise IRQ */
 #define CMDQ_SEC_SHARED_THR_CNT_OFFSET (0x100)
+#define CMDQ_SEC_SHARED_TASK_VA_OFFSET (0x200)
+#define CMDQ_SEC_SHARED_OP_OFFSET (0x300)
 
 /* commanad buffer & metadata */
 #define CMDQ_TZ_CMD_BLOCK_SIZE	 (32 * 1024)
@@ -60,6 +62,7 @@ typedef struct {
 typedef struct {
 	long long shareMemoyPA; /* use long long for 64 bit compatible support */
 	uint32_t size;
+	bool useNormalIRQ;		/* use normal IRQ in SWd */
 } iwcCmdqPathResource_t;
 
 typedef struct {
@@ -73,6 +76,7 @@ typedef struct {
 	int32_t irqStatus; /* global secure IRQ flag */
 	int32_t irqFlag; /* thread IRQ flag */
 	uint32_t errInstr[2]; /* errInstr[0] = instB, errInstr[1] = instA */
+	uint32_t regValue;
 	uint32_t pc;
 } iwcCmdqCancelTask_t;
 
@@ -108,7 +112,7 @@ typedef struct {
 /* if we want to transact a large buffer in TCI/DCI, there are 2 method (both need 1 copy): */
 /* 1. use mc_map, to map normal world buffer to WSM, and pass secure_virt_addr in TCI/DCI buffer */
 /* note mc_map implies a memcopy to copy content from normal world to WSM */
-/* 2. declare a fixed lenth array in TCI/DCI struct, and its size must be < 1M */
+/* 2. declare a fixed length array in TCI/DCI struct, and its size must be < 1M */
 /*  */
 typedef struct {
 	union {
@@ -147,6 +151,17 @@ typedef struct {
 #define CMDQ_ERR_SECURITY_INVALID_DAPC_FALG (1502)
 #define CMDQ_ERR_INSERT_DAPC_INSTR_FAILED (1503)
 #define CMDQ_ERR_INSERT_PORT_SECURITY_INSTR_FAILED (1504)
+#define CMDQ_ERR_INVALID_SECURITY_THREAD (1505)
+#define CMDQ_ERR_PATH_RESOURCE_NOT_READY (1506)
+#define CMDQ_ERR_NULL_TASK (1507)
+/* secure access error */
+#define CMDQ_ERR_MAP_ADDRESS_FAILED (2001)
+#define CMDQ_ERR_UNMAP_ADDRESS_FAILED (2002)
+#define CMDQ_ERR_RESUME_WORKER_FAILED (2003)
+#define CMDQ_ERR_SUSPEND_WORKER_FAILED (2004)
+/* HW error */
+#define CMDQ_ERR_SUSPEND_HW_FAILED (4001)
+#define CMDQ_ERR_RESET_HW_FAILED (4002)
 
 #define CMDQ_TL_ERR_UNKNOWN_IWC_CMD	   (5000)
 

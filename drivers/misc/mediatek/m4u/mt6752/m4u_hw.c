@@ -196,7 +196,7 @@ int m4u_invalid_tlb(int m4u_id,int L2_en, int isInvAll, unsigned int mva_start, 
   
 }
 
-static void m4u_invalid_tlb_all(int m4u_id)
+void m4u_invalid_tlb_all(int m4u_id)
 {
     m4u_invalid_tlb(m4u_id, gM4U_L2_enable, 1, 0, 0);
 }
@@ -638,9 +638,9 @@ int m4u_dump_main_tlb(int m4u_id, int m4u_slave_id)
     for(i=0;i<gM4UTagCount[m4u_id];i++)
     {
         m4u_get_main_tlb(m4u_id, m4u_slave_id, i, &tlb);
-        printk("%d:0x%x:0x%x  ", i, tlb.tag, tlb.desc);
+        M4UMSG("%d:0x%x:0x%x  ", i, tlb.tag, tlb.desc);
         if((i+1)%8==0)
-            printk("===\n");
+            M4UMSG("===\n");
     }
 
     return 0;
@@ -657,10 +657,10 @@ int m4u_dump_invalid_main_tlb(int m4u_id, int m4u_slave_id)
 		if((tlb.tag&(F_MAIN_TLB_VALID_BIT|F_MAIN_TLB_INV_DES_BIT))
 				== (F_MAIN_TLB_VALID_BIT|F_MAIN_TLB_INV_DES_BIT))
 		{
-			printk("%d:0x%x:0x%x  ", i, tlb.tag, tlb.desc);
+			M4UMSG("%d:0x%x:0x%x  ", i, tlb.tag, tlb.desc);
 		}
     }
-	printk("\n");
+	M4UMSG("\n");
     
     return 0;
 }
@@ -694,7 +694,7 @@ int m4u_dump_pfh_tlb(int m4u_id)
     set_nr = MMU_SET_NR(m4u_id);
     way_nr = MMU_WAY_NR;
 
-    printk("dump pfh_tlb: m4u %d  ====> \n", m4u_id);
+    M4UMSG("dump pfh_tlb: m4u %d  ====> \n", m4u_id);
     
     for(way=0; way<way_nr; way++)
     {
@@ -705,7 +705,7 @@ int m4u_dump_pfh_tlb(int m4u_id)
             regval = M4U_ReadReg32(m4u_base, REG_MMU_PFH_VLD(m4u_id, set, way));
             valid = !!(regval & F_MMU_PFH_VLD_BIT(set, way));
             m4u_get_pfh_tlb(m4u_id, set, 0, way, &tlb);
-            printk("va(0x%x) lay(%d) 16x(%d) sec(%d) pfh(%d) v(%d),set(%d),way(%d), 0x%x:", 
+            M4UMSG("va(0x%x) lay(%d) 16x(%d) sec(%d) pfh(%d) v(%d),set(%d),way(%d), 0x%x:", 
                 imu_pfh_tag_to_va(m4u_id, set, way, tlb.tag),
                 !!(tlb.tag & F_PFH_TAG_LAYER_BIT),
                 !!(tlb.tag & F_PFH_TAG_16X_BIT),
@@ -718,9 +718,9 @@ int m4u_dump_pfh_tlb(int m4u_id)
             for(page=1; page<8; page++)
             {
                 m4u_get_pfh_tlb(m4u_id, set, page, way, &tlb);
-                printk("0x%x:", tlb.desc);
+                M4UMSG("0x%x:", tlb.desc);
             }
-            printk("\n");
+            M4UMSG("\n");
             
         }
     }
@@ -1471,7 +1471,8 @@ int m4u_config_port_array(struct m4u_port_array *port_array)
             }
         }			
     }
-	M4ULOG_HIGH("m4u_config_port_array 1: [0x%x, 0x%x, 0x%x, 0x%x, 0x%x] %d\n", config_larb[0], config_larb[1], config_larb[2], config_larb[3], config_larb[4], change);
+	M4ULOG_MID("m4u_config_port_array 1: [0x%x, 0x%x, 0x%x, 0x%x, 0x%x] %d\n",
+		config_larb[0], config_larb[1], config_larb[2], config_larb[3], config_larb[4], change);
 
 #ifdef M4U_TEE_SERVICE_ENABLE   
     if(m4u_tee_en && 1 == change)
@@ -1556,7 +1557,7 @@ int m4u_monitor_stop(int m4u_id)
 }
 
 
-void m4u_print_perf_counter(int m4u_index, const char *msg)
+void m4u_print_perf_counter(int m4u_index, int m4u_slave_id, const char *msg)
 {
     M4U_PERF_COUNT cnt;
     M4UINFO("====m4u performance count for %s======\n", msg);
@@ -1778,7 +1779,7 @@ static unsigned int larb0_cnt = 0;
 
 void m4u_larb0_enable(char *name)
 {
-    M4UMSG("m4u_larb0_enable, refcnt: %d, %s\n", larb0_cnt, name); 
+	M4ULOG_LOW("m4u_larb0_enable, refcnt: %d, %s\n", larb0_cnt, name);
 
     mutex_lock(&m4u_larb0_mutex);
     larb_clock_on(0);
@@ -1792,7 +1793,7 @@ void m4u_larb0_enable(char *name)
 
 void m4u_larb0_disable(char *name)
 {
-    M4UMSG("m4u_larb0_disable, refcnt: %d, %s\n", larb0_cnt, name); 
+	M4ULOG_LOW("m4u_larb0_disable, refcnt: %d, %s\n", larb0_cnt, name);
 
     mutex_lock(&m4u_larb0_mutex);
     larb0_cnt--;
@@ -2402,18 +2403,18 @@ int m4u_hw_init(struct m4u_device *m4u_dev, int m4u_id)
     ProtectPA = virt_to_phys((void *)pProtectVA);
     if(ProtectPA & (TF_PROTECT_BUFFER_SIZE-1))
     {
-        M4UMSG("protect buffer (0x%lx) not align.\n",ProtectPA);
+        M4UMSG("protect buffer (0x%lx) not align.\n",(unsigned long)ProtectPA);
         return -1;
     }
 
-    M4UINFO("protect memory va=0x%lx, pa=0x%p.\n", pProtectVA, ProtectPA);
-           
+    M4UINFO("protect memory va=0x%lx, pa=0x%lx.\n", pProtectVA, (unsigned long)ProtectPA);
+
     pM4URegBackUp = (unsigned int*)kmalloc(M4U_REG_BACKUP_SIZE, GFP_KERNEL|__GFP_ZERO);
     if(pM4URegBackUp==NULL)
     {
-        M4UMSG("Physical memory not available size=%d.\n", M4U_REG_BACKUP_SIZE);
-        return -1;
-    }    
+		M4UMSG("Physical memory not available size=%d.\n", (int)M4U_REG_BACKUP_SIZE);
+		return -1;
+	}
 
     spin_lock_init(&gM4u_reg_lock);
 

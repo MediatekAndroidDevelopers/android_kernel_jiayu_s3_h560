@@ -31,6 +31,7 @@ typedef struct _M4U_PERF_COUNT
     unsigned int main_tlb_miss_cnt;
     unsigned int pfh_tlb_miss_cnt;
     unsigned int pfh_cnt;
+    unsigned int rs_perf_cnt;
 }M4U_PERF_COUNT;
 
 typedef struct __mmu_tlb
@@ -165,7 +166,7 @@ static inline int larb_port_2_m4u_port(int larb, int larb_port)
     return M4U_PORT_UNKNOWN;
 }
 
-void m4u_print_perf_counter(int m4u_index, const char *msg);
+void m4u_print_perf_counter(int m4u_index, int m4u_slave_id, const char *msg);
 int m4u_dump_reg(int m4u_index, unsigned int start);
 
 
