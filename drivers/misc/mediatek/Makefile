@@ -238,7 +238,9 @@ endif
 obj-y	+= power/
 obj-y	+= i2c/
 obj-y	+= pwm/
-obj-$(CONFIG_MTK_SMI)	+= smi/
+#superdragonpt, drop old smi, and move to new MM smi_ext
+#obj-$(CONFIG_MTK_SMI)	+= smi/
+obj-$(CONFIG_MTK_SMI_EXT)	+= smi/ 
 obj-$(CONFIG_MTK_BTCVSD) += btcvsd/
 obj-$(CONFIG_MTK_SOUND)	+= sound/
 obj-$(CONFIG_MTK_SPI)	+= spi/

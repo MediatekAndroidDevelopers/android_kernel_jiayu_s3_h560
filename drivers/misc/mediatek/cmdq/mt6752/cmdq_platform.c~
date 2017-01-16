@@ -6,7 +6,7 @@
 #include <mach/mt_clkmgr.h>
 #include <linux/seq_file.h>
 
-#include <../../smi/smi_debug.h>
+#include <smi_debug.h>
 #include "m4u.h"
 
 #define MMSYS_CONFIG_BASE  cmdq_dev_get_module_base_VA_MMSYS_CONFIG()
