@@ -38,6 +38,8 @@
 #include <cust_gpio_usage.h>
 #include <mach/mt_gpio.h>
 
+#include <linux/input.h>
+
 //#define GPIO_HALL_EINT_PIN GPIO116	//move to dct
 //#define CUST_EINT_HALL_NUM 11		//move to dct
 
@@ -54,23 +56,23 @@ extern void mt_eint_print_status(void);
 static struct workqueue_struct * hall_eint_workqueue = NULL;
 static struct work_struct hall_eint_work;
 
-static struct switch_dev hall_data;
+static struct input_dev	*idev;
 
 void hall_eint_work_callback(struct work_struct *work)
 {
+        int err = 1;
 	HALL_FUNC();
-    mt_eint_mask(CUST_EINT_HALL_NUM);
-	if(hall_cur_eint_state == HALL_NEAR)
-	{
-		HALL_DEBUG("HALL_NEAR\n");
-        switch_set_state((struct switch_dev *)&hall_data, HALL_NEAR);
-	}
-	else
-	{
-		HALL_DEBUG("HALL_FAR\n");
-        switch_set_state((struct switch_dev *)&hall_data, HALL_FAR);
-	}
-    mt_eint_unmask(CUST_EINT_HALL_NUM);
+        mt_eint_mask(CUST_EINT_HALL_NUM);
+
+        if (idev == NULL) {
+                hall_setup_switch_dev();
+        }
+
+	if (idev != NULL) {
+                input_report_switch(idev, SW_LID, !hall_cur_eint_state);
+                input_sync(idev);
+        }
+        mt_eint_unmask(CUST_EINT_HALL_NUM);
 }
 
 void hall_eint_func(void)
@@ -92,6 +94,21 @@ void hall_eint_func(void)
 	ret = queue_work(hall_eint_workqueue, &hall_eint_work); 
 }
 
+void hall_setup_switch_dev(void)
+{
+	int ret = 0;
+
+        idev = input_allocate_device();    
+	input_set_capability(idev, EV_SW, SW_LID);
+
+	ret = input_register_device(idev);
+	if (ret) {
+		pr_info("[Hall_switch] input registration fails\n");
+                input_free_device(idev);
+                idev = NULL;
+        }
+}
+
 static inline int hall_setup_eint(void)
 {
 	HALL_FUNC();
@@ -110,8 +127,6 @@ static inline int hall_setup_eint(void)
 
 static int hall_probe(struct platform_device *dev)
 {
-	int ret = 0;
-	
 	HALL_FUNC();
 
 	bool curr_state;
@@ -120,30 +135,18 @@ static int hall_probe(struct platform_device *dev)
 	mt_set_gpio_pull_enable(GPIO_HALL_EINT_PIN, GPIO_PULL_DISABLE);
 	curr_state = mt_get_gpio_in(GPIO_HALL_EINT_PIN);
 	printk("%s line %d curr_state %d\n",__func__,__LINE__, curr_state);
-
+	
 	if(!curr_state){
-		hall_data.name = "hall";
-		hall_data.index = 0;
-		hall_data.state = HALL_FAR;
 		hall_cur_eint_state = HALL_FAR;
 	}else{
-		hall_data.name = "hall";
-		hall_data.index = 0;
-		hall_data.state = HALL_NEAR;
 		hall_cur_eint_state = HALL_NEAR;
 	}
-
-	ret = switch_dev_register(&hall_data);
-	if(ret)
-	{
-		HALL_DEBUG("switch_dev_register return %d\n", ret);
-	}
-
+        hall_setup_switch_dev();
 	hall_eint_workqueue = create_singlethread_workqueue("hall_eint");
 	INIT_WORK(&hall_eint_work, hall_eint_work_callback);
 
 	hall_setup_eint();
-	
+
 	return 0;
 }
 
@@ -152,7 +155,8 @@ static int hall_remove(struct platform_device *dev)
 	HALL_FUNC();
 
 	destroy_workqueue(hall_eint_workqueue);
-	switch_dev_unregister(&hall_data);
+        input_free_device(idev);
+        idev = NULL;
 
 	return 0;
 }
