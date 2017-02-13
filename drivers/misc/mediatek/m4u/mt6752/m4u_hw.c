@@ -416,8 +416,12 @@ int config_mau(M4U_MAU_STRUCT mau)
     int larb = m4u_port_2_larb_id(mau.port);
     unsigned int MVAStart = mau.mva;
     unsigned int MVAEnd = mau.mva + mau.size;
+    int port_id = m4u_port_2_larb_port(mau.port);
 
     if(0 != m4u_id)
+        return -1;
+
+    if(port_id >= M4U_PORT_UNKNOWN || larb == -1)
         return -1;
 	
     for(i=0; i<M4U0_MAU_NR; i++)
@@ -468,7 +472,7 @@ int config_mau(M4U_MAU_STRUCT mau)
     gM4u0_mau[free_id].MVAEnd = MVAEnd;
     gM4u0_mau[free_id].port = mau.port;
 
-    mau_start_monitor(m4u_id, larb_2_m4u_slave_id(larb), free_id, (int)mau.write, 1, 0, 0, MVAStart, MVAEnd, 1 << m4u_port_2_larb_port(mau.port), 1 << larb);
+    mau_start_monitor(m4u_id, larb_2_m4u_slave_id(larb), free_id, (int)mau.write, 1, 0, 0, MVAStart, MVAEnd, 1 << port_id, 1 << larb);
     return free_id;
 }
 
@@ -1115,9 +1119,17 @@ static void smi_common_clock_off(void)
 int m4u_insert_seq_range(M4U_PORT_ID port,unsigned int MVAStart,unsigned int MVAEnd) 
 {
     int i, free_id = -1;
-    unsigned int m4u_index = m4u_port_2_m4u_id(port);
-    unsigned int m4u_slave_id = m4u_port_2_m4u_slave_id(port);
-    M4U_RANGE_DES_T *pSeq = gM4USeq[m4u_index] + M4U_SEQ_NUM(m4u_index)*m4u_slave_id;
+    unsigned int m4u_index;
+    unsigned int m4u_slave_id;
+    M4U_RANGE_DES_T *pSeq;
+
+    m4u_index = m4u_port_2_m4u_id(port);
+    m4u_slave_id = m4u_port_2_m4u_slave_id(port);
+
+    if (m4u_index == -1 || m4u_slave_id == -1)
+        return -1;
+
+    pSeq  = gM4USeq[m4u_index] + M4U_SEQ_NUM(m4u_index)*m4u_slave_id;
 	  
     M4ULOG_MID("m4u_insert_seq_range , module:%s, MVAStart:0x%x, MVAEnd:0x%x\n", 
             m4u_get_port_name(port), MVAStart, MVAEnd);
@@ -1149,8 +1161,8 @@ int m4u_insert_seq_range(M4U_PORT_ID port,unsigned int MVAStart,unsigned int MVA
             }
             else
             {
-                M4ULOG_HIGH("insert range overlap!: larb=%d,module=%s\n", 
-                     m4u_port_2_larb_id(port), m4u_get_port_name(port));
+                M4ULOG_HIGH("insert range overlap!: port=%d,module=%s\n", 
+                     port, m4u_get_port_name(port));
                 M4ULOG_HIGH("warning: insert tlb range is overlapped with previous ranges, current process=%s,!\n",  current->comm);	
                 M4ULOG_HIGH("module=%s, mva_start=0x%x, mva_end=0x%x \n", m4u_get_port_name(port), MVAStart, MVAEnd);
                 M4ULOG_HIGH("overlapped range id=%d, module=%s, mva_start=0x%x, mva_end=0x%x \n", 
@@ -1201,11 +1213,19 @@ int m4u_insert_seq_range(M4U_PORT_ID port,unsigned int MVAStart,unsigned int MVA
 
 int m4u_invalid_seq_range_by_id(int port, int seq_id)
 {
-    int m4u_index = m4u_port_2_m4u_id(port);
-    int m4u_slave_id = m4u_port_2_m4u_slave_id(port);
-    unsigned long m4u_base = gM4UBaseAddr[m4u_index];
-    M4U_RANGE_DES_T *pSeq = gM4USeq[m4u_index] + M4U_SEQ_NUM(m4u_index)*m4u_slave_id;
+    int m4u_index;
+    int m4u_slave_id;
+    unsigned long m4u_base;
+    M4U_RANGE_DES_T *pSeq;
     int ret=0;
+
+    m4u_index = m4u_port_2_m4u_id(port);
+    m4u_slave_id = m4u_port_2_m4u_slave_id(port);
+    if(m4u_index == -1 && m4u_slave_id == -1)
+	return -1;
+
+    m4u_base = gM4UBaseAddr[m4u_index];
+    pSeq = gM4USeq[m4u_index] + M4U_SEQ_NUM(m4u_index)*m4u_slave_id;
 
     mutex_lock(&gM4u_seq_mutex);
     {
@@ -1262,6 +1282,9 @@ static int _m4u_config_port(int port, int virt, int sec, int dis, int dir)
     unsigned long larb_base;
     unsigned int larb, larb_port;
     int ret = 0;
+
+    if (m4u_index == -1)
+	return -1;
     
     if(0 == virt || 1 == sec)    
     {
@@ -1518,7 +1541,14 @@ void m4u_get_perf_counter(int m4u_index, int m4u_slave_id, M4U_PERF_COUNT *pM4U_
 
 int m4u_monitor_start(int m4u_id)
 {
-    unsigned long m4u_base = gM4UBaseAddr[m4u_id];
+    unsigned long m4u_base;
+
+    if (m4u_id < 0) {
+        M4UMSG("ERROR m4u id ,error id is %d\n", m4u_id);
+        return -1;
+    }
+    m4u_base = gM4UBaseAddr[m4u_id];
+
     M4UINFO("====m4u_monitor_start: %d======\n", m4u_id);	
     //clear GMC performance counter
     m4uHw_set_field_by_mask(m4u_base, REG_MMU_CTRL_REG, 
@@ -1541,7 +1571,13 @@ int m4u_monitor_stop(int m4u_id)
 {
     M4U_PERF_COUNT cnt;
     int m4u_index = m4u_id;
-    unsigned long m4u_base = gM4UBaseAddr[m4u_index];
+    unsigned long m4u_base;
+
+    if (m4u_id < 0) {
+        M4UMSG("ERROR m4u id ,error id is %d\n", m4u_id);
+        return -1;
+    }
+    m4u_base = gM4UBaseAddr[m4u_id];
     
     //disable GMC performance monitor
     m4uHw_set_field_by_mask(m4u_base, REG_MMU_CTRL_REG, 
@@ -1947,7 +1983,11 @@ int m4u_unregister_fault_callback(int port)
 
 int m4u_enable_tf(int port, bool fgenable)
 {
-    gM4uPort[port].enable_tf = fgenable;
+    if (port >= 0 && port < gM4u_port_num)
+        gM4uPort[port].enable_tf = fgenable;
+    else
+        M4UMSG("%s, error: port=%d\n", __func__, port);
+
     return 0;
 }
 
@@ -2129,26 +2169,33 @@ irqreturn_t MTK_M4U_isr(int irq, void *dev_id)
 				
                 if(0 != valid_mva_end && fault_mva < valid_mva_end+SZ_4K)
                 {
-                    M4UMSG("bypass disp TF, valid mva=0x%x, size=0x%x, mva_end=0x%x\n", valid_mva, valid_size, valid_mva_end);
+                    M4UMSG("bypass disp TF, valid mva=0x%x, size=0x%x, mva_end=0x%x\n",
+                    		valid_mva, valid_size, valid_mva_end);
                     bypass_DISP_TF = 1;
                 }
             }
 
-            if(gM4uPort[m4u_port].enable_tf == 1 && bypass_DISP_TF == 0)
-            {
+            if (gM4uPort[m4u_port].enable_tf == 1 && bypass_DISP_TF == 0) {
                 m4u_dump_pte_nolock(m4u_get_domain_by_port(m4u_port), fault_mva);
 
-                m4u_print_port_status(NULL, 1);
+                /* m4u_print_port_status(NULL, 1); */
 
-
-                //call user's callback to dump user registers
-                if(m4u_port < M4U_PORT_UNKNOWN && gM4uPort[m4u_port].fault_fn)
+                /* call user's callback to dump user registers */
+                if (m4u_port < M4U_PORT_UNKNOWN && gM4uPort[m4u_port].fault_fn)
                     gM4uPort[m4u_port].fault_fn(m4u_port, fault_mva, gM4uPort[m4u_port].fault_data);
 
                 m4u_dump_buf_info(NULL);
-                m4u_aee_print("\nCRDISPATCH_KEY:M4U_%s\ntranslation fault: port=%s, mva=0x%x, pa=0x%x\n", 
+                if (m4u_port < M4U_PORT_UNKNOWN && NULL == gM4uPort[m4u_port].fault_data) {
+                    m4u_aee_print(
+                        "\nCRDISPATCH_KEY:M4U_%s\n, translation fault: port=%s, mva=0x%x, pa=0x%x\n", 
                         m4u_get_port_name(m4u_port), m4u_get_port_name(m4u_port),
                         fault_mva, fault_pa);
+                } else {
+                    m4u_aee_print(
+                        "\nCRDISPATCH_KEY:M4U_%s\n, translation fault: port=%s, mva=0x%x, pa=0x%x\n",
+                        (char *)gM4uPort[m4u_port].fault_data,
+                        m4u_get_port_name(m4u_port), fault_mva, fault_pa);
+                }
             }
             MMProfileLogEx(M4U_MMP_Events[M4U_MMP_M4U_ERROR], MMProfileFlagPulse, m4u_port, fault_mva);
         }
