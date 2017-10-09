@@ -99,8 +99,10 @@ static int g_probe_pid=GED_NO_UM_SERVICE;
 //typedef void (*gpufreq_input_boost_notify)(unsigned int );
 //typedef void (*gpufreq_power_limit_notify)(unsigned int );
 //>2016/03/27-stevenchen
-extern void mt_gpufreq_input_boost_notify_registerCB(gpufreq_input_boost_notify pCB);
-extern void mt_gpufreq_power_limit_notify_registerCB(gpufreq_power_limit_notify pCB);
+//#ifdef MT_GPUFREQ_INPUT_BOOST
+//extern void mt_gpufreq_input_boost_notify_registerCB(gpufreq_input_boost_notify pCB);
+//#endif
+//extern void mt_gpufreq_power_limit_notify_registerCB(gpufreq_power_limit_notify pCB);
 extern void (*mtk_boost_gpu_freq_fp)(void);
 extern void (*mtk_set_bottom_gpu_freq_fp)(unsigned int);
 extern unsigned int (*mtk_get_bottom_gpu_freq_fp)(void);
@@ -977,9 +979,11 @@ GED_ERROR ged_dvfs_system_init()
 
 
 
-	// GPU HAL fp mount	
+	// GPU HAL fp mount
+//#ifdef MT_GPUFREQ_INPUT_BOOST
 	//mt_gpufreq_input_boost_notify_registerCB(ged_dvfs_freq_input_boostCB); // MTKFreqInputBoostCB
-	mt_gpufreq_power_limit_notify_registerCB(ged_dvfs_freq_thermal_limitCB); // MTKFreqPowerLimitCB
+//#endif
+	//mt_gpufreq_power_limit_notify_registerCB(ged_dvfs_freq_thermal_limitCB); // MTKFreqPowerLimitCB
 	mtk_boost_gpu_freq_fp = ged_dvfs_boost_gpu_freq;
 	mtk_set_bottom_gpu_freq_fp = ged_dvfs_set_bottom_gpu_freq;
 	mtk_get_bottom_gpu_freq_fp = ged_dvfs_get_bottom_gpu_freq;
