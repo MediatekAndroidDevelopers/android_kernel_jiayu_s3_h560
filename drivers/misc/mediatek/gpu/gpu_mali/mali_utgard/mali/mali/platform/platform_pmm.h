@@ -25,6 +25,13 @@ typedef enum mali_power_mode
     //MALI_POWER_MODE_NUM
 } mali_power_mode;
 
+typedef enum mali_dvfs_action
+{
+    MALI_DVFS_CLOCK_UP = 0x1,
+    MALI_DVFS_CLOCK_DOWN,
+    MALI_DVFS_CLOCK_NOP
+} mali_dvfs_action;
+
 /** @brief Platform power management initialisation of MALI
  *
  * This is called from the entrypoint of the driver to initialize the platform

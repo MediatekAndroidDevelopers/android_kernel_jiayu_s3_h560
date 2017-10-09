@@ -1,9 +1,7 @@
 #clouds add
 VER:=eng
-ifneq ($(strip $(TARGET_BUILD_VARIANT)),)
-ifneq ($(strip $(TARGET_BUILD_VARIANT)),eng)
+ifndef CONFIG_MT_ENG_BUILD
 VER:=user
-endif
 endif
 #----------------------------------------------------------
 #[Section:Manual modify]
@@ -13,8 +11,10 @@ USING_GPU_UTILIZATION := 1
 
 #----------------------------------------------------------
 #[Section:Should add to alps project config (TODO)]
-#Not yet move to "alps/mediatek/config/mt6582/autoconfig/kconfig/platform"
 #due to the mechanism
+ifneq (,$(filter $(CONFIG_MTK_PLATFORM), "mt6592"))
+ccflags-y += -DCONFIG_MALI450
+endif
 
 CONFIG_MALI400 := y
 ifeq ($(VER),eng)

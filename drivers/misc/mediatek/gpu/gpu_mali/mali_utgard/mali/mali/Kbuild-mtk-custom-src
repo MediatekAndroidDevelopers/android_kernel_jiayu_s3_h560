@@ -9,9 +9,11 @@ ccflags-y += -I$(DRIVER_DIR)/../ump_include/ump
 
 #include mtk kernel header files
 ccflags-y += \
-    -I$(srctree)/arch/arm/mach-mt6582/include/mach \
+    -I$(srctree)/arch/arm/mach-$(subst ",,$(CONFIG_MTK_PLATFORM))/include/mach \
+    -I$(srctree)/drivers/misc/mediatek/mach/$(subst ",,$(CONFIG_MTK_PLATFORM))/include/mach \
+    -I$(srctree)/drivers/misc/mediatek/base/power/$(subst ",,$(CONFIG_MTK_PLATFORM)) \
     -I$(srctree)/include/linux \
-    -I$(srctree)/arch/arm/mach-mt6582/gpu/mali/mali/linux/license/gpl
+    -I$(srctree)/arch/arm/mach-$(subst ",,$(CONFIG_MTK_PLATFORM))/gpu/mali/mali/linux/license/gpl
 
 #Add MTK custom source code
 ccflags-y += -I$(DRIVER_DIR)/../../mediatek
@@ -24,9 +26,9 @@ ccflags-y += -DMALI_FAKE_PLATFORM_DEVICE
 #mali-y += platform/$(TARGET_PLATFORM)/mtk_ptrace.c
 
 mali-y += platform/arm_core_scaling.o
-mali-y += platform/platform.o
-mali-y += platform/platform_pmm.o
 
+mali-y += platform/$(subst ",,$(CONFIG_MTK_PLATFORM))/platform.o
+mali-y += platform/$(subst ",,$(CONFIG_MTK_PLATFORM))/platform_pmm.o
 
 #MTK_DEBUG
 ccflags-y += -I$(DRIVER_DIR)/mtk_common

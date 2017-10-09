@@ -95,8 +95,10 @@ static int g_probe_pid=GED_NO_UM_SERVICE;
 
 #endif
 
-typedef void (*gpufreq_input_boost_notify)(unsigned int );
-typedef void (*gpufreq_power_limit_notify)(unsigned int );
+//<2016/03/27-stevenchen, Enable CONFIG_MODVERSIONS and update texfat.ko
+//typedef void (*gpufreq_input_boost_notify)(unsigned int );
+//typedef void (*gpufreq_power_limit_notify)(unsigned int );
+//>2016/03/27-stevenchen
 extern void mt_gpufreq_input_boost_notify_registerCB(gpufreq_input_boost_notify pCB);
 extern void mt_gpufreq_power_limit_notify_registerCB(gpufreq_power_limit_notify pCB);
 extern void (*mtk_boost_gpu_freq_fp)(void);
@@ -120,15 +122,21 @@ static bool ged_dvfs_policy(
 
 unsigned long ged_query_info( GED_INFO eType)
 {
+	unsigned int gpu_loading;
+	unsigned int gpu_block;
+	unsigned int gpu_idle;
 	switch(eType)
 	{
-#ifdef GED_DVFS_ENABLE    
 		case GED_LOADING:
+			mtk_get_gpu_loading(&gpu_loading);
 			return gpu_loading;
 		case GED_IDLE:
+			mtk_get_gpu_idle(&gpu_idle);
 			return gpu_idle;
 		case GED_BLOCKING:
+			mtk_get_gpu_block(&gpu_block);
 			return gpu_block;
+#ifdef GED_DVFS_ENABLE
 		case GED_PRE_FREQ:
 			return mt_gpufreq_get_freq_by_idx(g_ui32PreFreqID);
 		case GED_PRE_FREQ_IDX:
@@ -145,6 +153,7 @@ unsigned long ged_query_info( GED_INFO eType)
 			return 0;
 		case GED_MIN_FREQ_IDX_FREQ:
 			return mt_gpufreq_get_freq_by_idx(0);
+#endif
 		case GED_3D_FENCE_DONE_TIME:
 			return ged_monitor_3D_fence_done_time();
 		case GED_VSYNC_OFFSET:
@@ -160,7 +169,6 @@ unsigned long ged_query_info( GED_INFO eType)
 			return g_ulWorkingPeriod_us;
 		case GED_LATEST_START:
 			return g_ulPreCalResetTS_us;
-#endif             
 		default:
 			return 0;
 	}

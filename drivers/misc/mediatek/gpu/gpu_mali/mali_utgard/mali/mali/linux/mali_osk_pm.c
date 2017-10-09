@@ -1,11 +1,11 @@
 /**
- * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
- * 
- * This program is free software and is provided to you under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
- * A copy of the licence is included with the program, and can also be obtained from Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * This confidential and proprietary software may be used only as
+ * authorised by a licensing agreement from ARM Limited
+ * (C) COPYRIGHT 2010-2015 ARM Limited
+ * ALL RIGHTS RESERVED
+ * The entire notice above must be reproduced on all authorised
+ * copies and copies may only be made to the extent permitted
+ * by a licensing agreement from ARM Limited.
  */
 
 /**
@@ -23,207 +23,160 @@
 #include "mali_osk.h"
 #include "mali_kernel_common.h"
 #include "mali_kernel_linux.h"
+
+// MTK: for SODI ================================================================= //
 #include "mali_pm.h"
 #include "platform_pmm.h"
 
-/// For MFG sub-system clock control API
-#include <mach/mt_clkmgr.h> 
-#include <linux/spinlock.h>
-
-static _mali_osk_timer_t* pm_timer;
-static _mali_osk_atomic_t mali_suspend_called;
-static _mali_osk_atomic_t mali_pm_ref_count;
-static _mali_osk_mutex_t* pm_lock;
-
-
+static _mali_osk_atomic_t mtk_mali_suspend_called;
+static _mali_osk_atomic_t mtk_mali_pm_ref_count;
+static _mali_osk_mutex_t* mtk_pm_lock;
+static struct work_struct mtk_mali_pm_wq_work_handle, mtk_mali_pm_wq_work_handle2;
 #if MALI_LICENSE_IS_GPL
-static struct workqueue_struct *mali_pm_wq = NULL;
+static struct workqueue_struct *mtk_mali_pm_wq = NULL;
+static struct workqueue_struct *mtk_mali_pm_wq2 = NULL;
 #endif
-static struct work_struct mali_pm_wq_work_handle;
 
-static void mali_bottom_half_pm ( struct work_struct *work )
-{
-    _mali_osk_mutex_wait(pm_lock);     
-     
-    if((_mali_osk_atomic_read(&mali_pm_ref_count) == 0) &&
-       (_mali_osk_atomic_read(&mali_suspend_called) == 0))
+static void MTK_mali_bottom_half_pm_suspend ( struct work_struct *work )
+{    
+    _mali_osk_mutex_wait(mtk_pm_lock);
+    if((_mali_osk_atomic_read(&mtk_mali_pm_ref_count) == 0) &&
+       (_mali_osk_atomic_read(&mtk_mali_suspend_called) == 0))
     {
-        mali_pm_runtime_suspend();
-        _mali_osk_atomic_inc(&mali_suspend_called);
-        mali_platform_power_mode_change(MALI_POWER_MODE_DEEP_SLEEP);        
+        if (MALI_TRUE == mali_pm_runtime_suspend())
+        {
+            _mali_osk_atomic_inc(&mtk_mali_suspend_called);
+            mali_platform_power_mode_change(MALI_POWER_MODE_DEEP_SLEEP);
+        }
     }
-     
-    _mali_osk_mutex_signal(pm_lock);
+    _mali_osk_mutex_signal(mtk_pm_lock);
 }
 
-_mali_osk_errcode_t _mali_osk_pm_delete_callback_timer(void)
-{
-   _mali_osk_timer_del(pm_timer);
-#if MALI_LICENSE_IS_GPL
-   if (mali_pm_wq)
-   {
-       flush_workqueue(mali_pm_wq);
-   }
-#else
-   flush_scheduled_work();
-#endif
-   return _MALI_OSK_ERR_OK;
+static void MTK_mali_bottom_half_pm_resume ( struct work_struct *work )
+{   
+    _mali_osk_mutex_wait(mtk_pm_lock);
+    mali_platform_power_mode_change(MALI_POWER_MODE_ON);
+    if(_mali_osk_atomic_read(&mtk_mali_suspend_called))
+    {	      		
+        mali_pm_runtime_resume();
+        _mali_osk_atomic_dec(&mtk_mali_suspend_called);
+    }
+    _mali_osk_mutex_signal(mtk_pm_lock);
 }
 
-void _mali_pm_callback(void *arg)
+void MTK_mali_osk_pm_dev_enable(void)
 {
-#if MALI_LICENSE_IS_GPL
-    if (mali_pm_wq)
-    {
-        queue_work(mali_pm_wq, &mali_pm_wq_work_handle);
-    }
-    else
-    {
-        MALI_PRINTF(("mali_pm_wq is NULL !!!\n"));
-        mali_bottom_half_pm(NULL);
-    }
-#else
-    schedule_work(&mali_pm_wq_work_handle);
-#endif
-}
+    _mali_osk_atomic_init(&mtk_mali_pm_ref_count, 0);
+    _mali_osk_atomic_init(&mtk_mali_suspend_called, 0);
+    mtk_pm_lock = _mali_osk_mutex_init(_MALI_OSK_LOCKFLAG_ORDERED, 0);
 
-void _mali_osk_pm_dev_enable(void)
-{
-	_mali_osk_atomic_init(&mali_pm_ref_count, 0);
-	_mali_osk_atomic_init(&mali_suspend_called, 0);
-	pm_timer = _mali_osk_timer_init();
-	_mali_osk_timer_setcallback(pm_timer, _mali_pm_callback, NULL);	
-	
-    pm_lock = _mali_osk_mutex_init(_MALI_OSK_LOCKFLAG_ORDERED, 0);
+    mtk_mali_pm_wq = alloc_workqueue("mtk_mali_pm", WQ_UNBOUND, 0);
+    mtk_mali_pm_wq2 = alloc_workqueue("mtk_mali_pm2", WQ_UNBOUND, 0);
 
-#if MALI_LICENSE_IS_GPL
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
-    mali_pm_wq = alloc_workqueue("mali_pm", WQ_UNBOUND, 0);
-#else
-    mali_pm_wq = create_workqueue("mali_pm");
-#endif
-    if(NULL == mali_pm_wq)
+    if(NULL == mtk_mali_pm_wq || NULL == mtk_mali_pm_wq2)
     {
         MALI_PRINT_ERROR(("Unable to create Mali pm workqueue\n"));
     }
-#endif
-    INIT_WORK( &mali_pm_wq_work_handle, mali_bottom_half_pm );
+
+    INIT_WORK(&mtk_mali_pm_wq_work_handle, MTK_mali_bottom_half_pm_suspend );
+    INIT_WORK(&mtk_mali_pm_wq_work_handle2, MTK_mali_bottom_half_pm_resume);
 }
 
-void _mali_osk_pm_dev_disable(void)
+void MTK_mali_osk_pm_dev_disable(void)
 {
-#if MALI_LICENSE_IS_GPL
-    if (mali_pm_wq)
+    if (mtk_mali_pm_wq)
     {
-        flush_workqueue(mali_pm_wq);
-        destroy_workqueue(mali_pm_wq);
-        mali_pm_wq = NULL;
+        flush_workqueue(mtk_mali_pm_wq);
+        destroy_workqueue(mtk_mali_pm_wq);
+        mtk_mali_pm_wq = NULL;
     }
-#else
-    flush_scheduled_work();
-#endif
-	_mali_osk_atomic_term(&mali_pm_ref_count);
-	_mali_osk_atomic_term(&mali_suspend_called);
-	_mali_osk_timer_term(pm_timer);
-	_mali_osk_mutex_term(pm_lock);
+    
+    if (mtk_mali_pm_wq2)
+    {
+        flush_workqueue(mtk_mali_pm_wq2);
+        destroy_workqueue(mtk_mali_pm_wq2);
+        mtk_mali_pm_wq2 = NULL;
+    }
+
+	_mali_osk_atomic_term(&mtk_mali_pm_ref_count);
+	_mali_osk_atomic_term(&mtk_mali_suspend_called);
+	_mali_osk_mutex_term(mtk_pm_lock);
 }
+// MTK =========================================================================== //
+
 
 /* Can NOT run in atomic context */
-_mali_osk_errcode_t _mali_osk_pm_dev_ref_add(void)
+_mali_osk_errcode_t _mali_osk_pm_dev_ref_get_sync(void)
 {
 #ifdef CONFIG_PM_RUNTIME
-	int err;
-	MALI_DEBUG_ASSERT_POINTER(mali_platform_device);
-	err = pm_runtime_get_sync(&(mali_platform_device->dev));
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
-	pm_runtime_mark_last_busy(&(mali_platform_device->dev));
+    int err;
+    MALI_DEBUG_ASSERT_POINTER(mali_platform_device);
+    err = pm_runtime_get_sync(&(mali_platform_device->dev));
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+    pm_runtime_mark_last_busy(&(mali_platform_device->dev));
 #endif
-	if (0 > err)
-	{
-		MALI_PRINT_ERROR(("Mali OSK PM: pm_runtime_get_sync() returned error code %d\n", err));
-		return _MALI_OSK_ERR_FAULT;
-	}
-	_mali_osk_atomic_inc(&mali_pm_ref_count);
-	MALI_DEBUG_PRINT(4, ("Mali OSK PM: Power ref taken (%u)\n", _mali_osk_atomic_read(&mali_pm_ref_count)));
-#else /// CONFIG_PM_RUNTIME  
-
-    _mali_osk_pm_delete_callback_timer();
-	
-	_mali_osk_mutex_wait(pm_lock);
-	
-   mali_platform_power_mode_change(MALI_POWER_MODE_ON);
-   	
-   if(_mali_osk_atomic_read(&mali_suspend_called))
-   {	      		
-		mali_pm_runtime_resume();
-
-        _mali_osk_atomic_dec(&mali_suspend_called);
-	}
-	
-	_mali_osk_atomic_inc(&mali_pm_ref_count);       
-   
-    _mali_osk_mutex_signal(pm_lock);
-   
-   MALI_DEBUG_PRINT(4, ("Mali OSK PM: Power ref taken (%u)\n", _mali_osk_atomic_read(&mali_pm_ref_count)));		  
-
+    if (0 > err) {
+        MALI_PRINT_ERROR(("Mali OSK PM: pm_runtime_get_sync() returned error code %d\n", err));
+        return _MALI_OSK_ERR_FAULT;
+    }
+#else
+    _mali_osk_mutex_wait(mtk_pm_lock);
+    mali_platform_power_mode_change(MALI_POWER_MODE_ON);
+    if(_mali_osk_atomic_read(&mtk_mali_suspend_called))
+    {	      		
+        mali_pm_runtime_resume();
+        _mali_osk_atomic_dec(&mtk_mali_suspend_called);
+    }
+    _mali_osk_atomic_inc(&mtk_mali_pm_ref_count);
+    _mali_osk_mutex_signal(mtk_pm_lock);
 #endif
-	return _MALI_OSK_ERR_OK;
+    return _MALI_OSK_ERR_OK;
 }
 
 /* Can run in atomic context */
-void _mali_osk_pm_dev_ref_dec(void)
+_mali_osk_errcode_t _mali_osk_pm_dev_ref_get_async(void)
 {
 #ifdef CONFIG_PM_RUNTIME
-	MALI_DEBUG_ASSERT_POINTER(mali_platform_device);
-	_mali_osk_atomic_dec(&mali_pm_ref_count);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
-	pm_runtime_mark_last_busy(&(mali_platform_device->dev));
-	pm_runtime_put_autosuspend(&(mali_platform_device->dev));
+    int err;
+    MALI_DEBUG_ASSERT_POINTER(mali_platform_device);
+    err = pm_runtime_get(&(mali_platform_device->dev));
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+    pm_runtime_mark_last_busy(&(mali_platform_device->dev));
+#endif
+    if (0 > err && -EINPROGRESS != err) {
+        MALI_PRINT_ERROR(("Mali OSK PM: pm_runtime_get() returned error code %d\n", err));
+        return _MALI_OSK_ERR_FAULT;
+    }
 #else
-	pm_runtime_put(&(mali_platform_device->dev));
+    _mali_osk_atomic_inc(&mtk_mali_pm_ref_count);
+    queue_work(mtk_mali_pm_wq2, &mtk_mali_pm_wq_work_handle2);
 #endif
-	MALI_DEBUG_PRINT(4, ("Mali OSK PM: Power ref released (%u)\n", _mali_osk_atomic_read(&mali_pm_ref_count)));
-
-#else /// CONFIG_PM_RUNTIME
-      	
-	if(_mali_osk_atomic_dec_return(&mali_pm_ref_count) == 0)
-	{
-		_mali_osk_timer_mod(pm_timer, _mali_osk_time_mstoticks(mali_pm_wq ? 15 : 3000));
-	}
-
-	MALI_DEBUG_PRINT(4, ("Mali OSK PM: Power ref released (%u)\n", _mali_osk_atomic_read(&mali_pm_ref_count)));
-#endif
+    return _MALI_OSK_ERR_OK;
 }
 
 /* Can run in atomic context */
-mali_bool _mali_osk_pm_dev_ref_add_no_power_on(void)
+void _mali_osk_pm_dev_ref_put(void)
 {
 #ifdef CONFIG_PM_RUNTIME
-	u32 ref;
-	MALI_DEBUG_ASSERT_POINTER(mali_platform_device);
-	pm_runtime_get_noresume(&(mali_platform_device->dev));
-	ref = _mali_osk_atomic_read(&mali_pm_ref_count);
-	MALI_DEBUG_PRINT(4, ("Mali OSK PM: No-power ref taken (%u)\n", _mali_osk_atomic_read(&mali_pm_ref_count)));
-	return ref > 0 ? MALI_TRUE : MALI_FALSE;
+    MALI_DEBUG_ASSERT_POINTER(mali_platform_device);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+    pm_runtime_mark_last_busy(&(mali_platform_device->dev));
+    pm_runtime_put_autosuspend(&(mali_platform_device->dev));
 #else
-   _mali_osk_mutex_wait(pm_lock);     
-	return _mali_osk_atomic_read(&mali_suspend_called) == 0 ? MALI_TRUE : MALI_FALSE;
+    pm_runtime_put(&(mali_platform_device->dev));
 #endif
-}
-
-/* Can run in atomic context */
-void _mali_osk_pm_dev_ref_dec_no_power_on(void)
-{
-#ifdef CONFIG_PM_RUNTIME
-	MALI_DEBUG_ASSERT_POINTER(mali_platform_device);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
-	pm_runtime_put_autosuspend(&(mali_platform_device->dev));
 #else
-	pm_runtime_put(&(mali_platform_device->dev));
-#endif
-	MALI_DEBUG_PRINT(4, ("Mali OSK PM: No-power ref released (%u)\n", _mali_osk_atomic_read(&mali_pm_ref_count)));
-#else
-   _mali_osk_mutex_signal(pm_lock);	
+    if(_mali_osk_atomic_dec_return(&mtk_mali_pm_ref_count) == 0)
+    {
+        if (mtk_mali_pm_wq)
+        {
+            queue_work(mtk_mali_pm_wq, &mtk_mali_pm_wq_work_handle);
+        }
+        else
+        {
+            MTK_mali_bottom_half_pm_suspend(NULL);
+        }
+    }
 #endif
 }
 
