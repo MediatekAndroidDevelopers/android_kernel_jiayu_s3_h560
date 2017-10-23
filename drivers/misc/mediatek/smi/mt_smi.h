@@ -17,7 +17,7 @@ typedef struct {
 	int entry;		/* 0~2: the mau entry to use */
 	unsigned int port_msk;	/* port mask to be monitored */
 	int virt;		/* 1: monitor va (this port is using m4u);  */
-	/* 0: monitor pa (this port is not using m4u) */
+					/* 0: monitor pa (this port is not using m4u) */
 	int monitor_read;	/* monitor read transaction 1-enable, 0-disable */
 	int monitor_write;	/* monitor write transaction 1-enable, 0-disable */
 	unsigned int start;	/* start address to monitor */
@@ -43,6 +43,10 @@ typedef enum {
 	SMI_BWC_SCEN_UI_IDLE,
 	SMI_BWC_SCEN_VSS,
 	SMI_BWC_SCEN_FORCE_MMDVFS,
+	SMI_BWC_SCEN_HDMI,
+	SMI_BWC_SCEN_HDMI4K,
+	SMI_BWC_SCEN_VPMJC,
+	SMI_BWC_SCEN_N3D,
 	SMI_BWC_SCEN_CNT
 } MTK_SMI_BWC_SCEN;
 
@@ -63,7 +67,7 @@ typedef struct {
 } MTK_SMI_BWC_CONFIG;
 
 typedef struct {
-	unsigned int *hwc_max_pixel;	/* : exit this scenario , 1 : enter this scenario */
+	unsigned int *hwc_max_pixel; /* : exit this scenario , 1 : enter this scenario */
 } MTK_SMI_BWC_STATE;
 
 typedef struct {
@@ -113,9 +117,9 @@ typedef enum {
 } MTK_SMI_BWC_INFO_ID;
 
 typedef struct {
-	int property;
-	int value1;
-	int value2;
+	int       property;
+	int       value1;
+	int       value2;
 } MTK_SMI_BWC_INFO_SET;
 
 

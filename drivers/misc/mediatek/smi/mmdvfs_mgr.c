@@ -1,7 +1,6 @@
 #include <linux/uaccess.h>
 #include <linux/aee.h>
 #include <linux/xlog.h>
-#include <mt_smi.h>
 #include <mach/mt_vcore_dvfs.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
@@ -10,6 +9,7 @@
 
 #include <linux/mtk_gpu_utility.h>
 
+#include "mt_smi.h"
 #include "mmdvfs_mgr.h"
 
 #undef pr_fmt
@@ -216,7 +216,7 @@ static void mmdvfs_update_cmd(MTK_MMDVFS_CMD *cmd)
 		g_mmdvfs_cmd.sensor_fps = cmd->sensor_fps;
 
 
-	MMDVFSMSG("update cm %d\n", cmd->camera_mode);
+	/* MMDVFSMSG("update cm %d\n", cmd->camera_mode); */
 
 	/* if (cmd->camera_mode != MMDVFS_CAMERA_MODE_FLAG_DEFAULT) { */
 	g_mmdvfs_cmd.camera_mode = cmd->camera_mode;
@@ -225,10 +225,12 @@ static void mmdvfs_update_cmd(MTK_MMDVFS_CMD *cmd)
 
 static void mmdvfs_dump_info(void)
 {
+/*
 	MMDVFSMSG("CMD %d %d %d\n", g_mmdvfs_cmd.sensor_size, g_mmdvfs_cmd.sensor_fps,
 		  g_mmdvfs_cmd.camera_mode);
 	MMDVFSMSG("INFO VR %d %d\n", g_mmdvfs_info->video_record_size[0],
 		  g_mmdvfs_info->video_record_size[1]);
+ */
 }
 
 static void mmdvfs_timer_callback(unsigned long data)
@@ -355,7 +357,7 @@ int mmdvfs_set_step(MTK_SMI_BWC_SCEN scenario, mmdvfs_voltage_enum step)
 #endif				/* MMDVFS_ENABLE_WQHD */
 #endif
 
-	MMDVFSMSG("MMDVFS set voltage scen %d step %d\n", scenario, step);
+	/* MMDVFSMSG("MMDVFS set voltage scen %d step %d\n", scenario, step); */
 
 	if ((scenario >= (MTK_SMI_BWC_SCEN) MMDVFS_SCEN_COUNT) || (scenario < SMI_BWC_SCEN_NORMAL)) {
 		MMDVFSERR("invalid scenario\n");
@@ -398,7 +400,7 @@ int mmdvfs_set_step(MTK_SMI_BWC_SCEN scenario, mmdvfs_voltage_enum step)
 	if (mmdvfs_get_lcd_resolution() == MMDVFS_LCD_SIZE_WQHD) {	/* WQHD */
 #ifdef MMDVFS_WQHD_1_0V
 		/* MMDVFS WQHD 1.0V default LPM, just as FHD */
-		MMDVFSMSG("WQHD10 %d\n", final_step);
+		/* MMDVFSMSG("WQHD10 %d\n", final_step); */
 
 		if (final_step == MMDVFS_VOLTAGE_HIGH) {
 			if (scenario == SMI_BWC_SCEN_UI_IDLE)
@@ -422,7 +424,7 @@ int mmdvfs_set_step(MTK_SMI_BWC_SCEN scenario, mmdvfs_voltage_enum step)
 		}
 #endif				/* MMDVFS_WQHD_1_0V */
 	} else {		/* FHD */
-		MMDVFSMSG("FHD %d\n", final_step);
+		/* MMDVFSMSG("FHD %d\n", final_step); */
 		if (final_step == MMDVFS_VOLTAGE_HIGH)
 			vcorefs_request_dvfs_opp(KR_MM_SCEN, OPPI_PERF);
 		else
@@ -439,7 +441,7 @@ void mmdvfs_handle_cmd(MTK_MMDVFS_CMD *cmd)
 	return;
 #endif
 
-	MMDVFSMSG("MMDVFS handle cmd %u s %d\n", cmd->type, cmd->scen);
+	/* MMDVFSMSG("MMDVFS handle cmd %u s %d\n", cmd->type, cmd->scen); */
 
 	switch (cmd->type) {
 	case MTK_MMDVFS_CMD_TYPE_SET:
@@ -652,12 +654,12 @@ void mmdvfs_notify_scenario_concurrency(unsigned int u4Concurrency)
 	if (u4Concurrency &
 	    ((1 << SMI_BWC_SCEN_VP) | (1 << SMI_BWC_SCEN_VR) | (1 << SMI_BWC_SCEN_VR_SLOW))) {
 #if MMDVFS_ENABLE
-		MMDVFSMSG("fliper high\n");
+		/* MMDVFSMSG("fliper high\n"); */
 		fliper_set_bw(BW_THRESHOLD_HIGH);
 #endif
 	} else {
 #if MMDVFS_ENABLE
-		MMDVFSMSG("fliper normal\n");
+		/* MMDVFSMSG("fliper normal\n"); */
 		fliper_restore_bw();
 #endif
 	}

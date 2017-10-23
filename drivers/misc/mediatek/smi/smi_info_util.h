@@ -4,7 +4,7 @@
 #include <asm/io.h>
 #include <linux/ioctl.h>
 #include <linux/fs.h>
-#include <mt_smi.h>
+#include "mt_smi.h"
 int smi_set_mm_info_ioctl_wrapper(struct file *pFile, unsigned int cmd, unsigned long param);
 int smi_get_mm_info_ioctl_wrapper(struct file *pFile, unsigned int cmd, unsigned long param);
 void smi_bwc_mm_info_set(int property_id, long val1, long val2);

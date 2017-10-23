@@ -23,9 +23,7 @@
 #include <linux/compat.h>
 #endif
 
-#include <mt_smi.h>
-
-
+#include "mt_smi.h"
 #include "smi_reg.h"
 #include "smi_common.h"
 #include "smi_debug.h"
@@ -424,11 +422,7 @@ static int smi_larb_init(unsigned int larb)
 
 
 	if (0 == regval) {
-#if defined(SMI_K2)
 		SMIDBG(1, "Init OSTD for larb_base: 0x%lx\n", larb_base);
-#elif defined(SMI_RO)
-		SMIMSG("Init OSTD for larb_base: 0x%lx\n", larb_base);
-#endif
 		M4U_WriteReg32(larb_base, SMI_LARB_OSTDL_SOFT_EN, 0xffffffff);
 	} else {
 		SMIMSG("Larb: 0x%lx is busy : 0x%x , port:0x%x,0x%x ,fail to set OSTD\n",
@@ -2099,7 +2093,7 @@ static long MTK_SMI_COMPAT_ioctl(struct file *filp, unsigned int cmd, unsigned l
 		{
 
 			if (COMPAT_MTK_IOC_SMI_BWC_INFO_SET == MTK_IOC_SMI_BWC_INFO_SET) {
-				SMIMSG("Optimized compct IOCTL: COMPAT_MTK_IOC_SMI_BWC_INFO_SET");
+				/* SMIMSG("Optimized compct IOCTL: COMPAT_MTK_IOC_SMI_BWC_INFO_SET"); */
 				return filp->f_op->unlocked_ioctl(filp, cmd,
 								  (unsigned long)compat_ptr(arg));
 			} else {
