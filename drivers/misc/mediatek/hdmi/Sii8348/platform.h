@@ -49,6 +49,23 @@ typedef enum
     HAL_RET_ALREADY_INITIALIZED 
 } halReturn_t;
 
+typedef enum
+{
+    MHL_GPIO_RESET,			
+    MHL_GPIO_POWER,			
+    MHL_GPIO_EINT,	
+    MHL_GPIO_DPI,			
+    MHL_GPIO_I2S,	
+} mhl_gpio_name;
+
+typedef enum
+{
+    MHL_GPIO_DEFAULT,
+    MHL_PGIO_INPUT,
+    MHL_GPIO_OUTPUT_LOW,
+    MHL_GPIO_OUTPUT_HIGH,
+    MHL_PGIO_FUNCTION_MODE
+}mhl_gpio_mode;
 
 #define DEBUG
 #if defined(DEBUG)

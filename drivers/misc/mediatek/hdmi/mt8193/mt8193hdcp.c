@@ -152,28 +152,28 @@ void vShowHdcpRawData(void)
 
 	MT8193_HDCP_FUNC();
 
-	pr_debug("==============================hdcpkey==============================\n");
-	pr_debug("   | 00  01  02  03  04  05  06  07  08  09  0a  0b  0c  0d  0e  0f\n");
-	pr_debug("===================================================================\n");
+	hdmi_print("==============================hdcpkey==============================\n");
+	hdmi_print("   | 00  01  02  03  04  05  06  07  08  09  0a  0b  0c  0d  0e  0f\n");
+	hdmi_print("===================================================================\n");
 	for (bTemp = 0; bTemp < 3; bTemp++) {
 		j = bTemp * 128;
 		for (i = 0; i < 8; i++) {
 			if (((i * 16) + j) < 0x10)
-				pr_debug("0%x:  ", (i * 16) + j);
+				hdmi_print("0%x:  ", (i * 16) + j);
 			else
-				pr_debug("%x:  ", (i * 16) + j);
+				hdmi_print("%x:  ", (i * 16) + j);
 
 			for (k = 0; k < 16; k++) {
 				if (k == 15) {
 					if ((j + (i * 16 + k)) < 287)	/* for Buffer overflow error */
 					{
 						if (bHdcpKeyExternalBuff[j + (i * 16 + k)] > 0x0f)
-							pr_debug("%2x\n",
+							hdmi_print("%2x\n",
 								 bHdcpKeyExternalBuff[j +
 										      (i * 16 +
 										       k)]);
 						else
-							pr_debug("0%x\n",
+							hdmi_print("0%x\n",
 								 bHdcpKeyExternalBuff[j +
 										      (i * 16 +
 										       k)]);
@@ -182,18 +182,18 @@ void vShowHdcpRawData(void)
 					if ((j + (i * 16 + k)) < 287)	/* for Buffer overflow error */
 					{
 						if (bHdcpKeyExternalBuff[j + (i * 16 + k)] > 0x0f)
-							pr_debug("%2x  ",
+							hdmi_print("%2x  ",
 								 bHdcpKeyExternalBuff[j +
 										      (i * 16 +
 										       k)]);
 						else
-							pr_debug("0%x  ",
+							hdmi_print("0%x  ",
 								 bHdcpKeyExternalBuff[j +
 										      (i * 16 +
 										       k)]);
 					} else {
-						pr_debug("\n");
-						pr_debug
+						hdmi_print("\n");
+						hdmi_print
 						    ("===================================================================\n");
 						return;
 					}

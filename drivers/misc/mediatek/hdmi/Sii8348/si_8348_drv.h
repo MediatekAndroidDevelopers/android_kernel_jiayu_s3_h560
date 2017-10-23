@@ -42,7 +42,9 @@ struct drv_hw_context {
 	uint8_t		valid_vsif;
 	//uint8_t		valid_avif;
 	uint8_t		valid_3d;
-
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT	
+	uint8_t		valid_3d_fs;
+#endif
 	struct workqueue_struct 	*demo_loop_wq;
 	struct delayed_work 		demo_loop_work;
 

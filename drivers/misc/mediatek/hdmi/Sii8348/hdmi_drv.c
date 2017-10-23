@@ -47,24 +47,24 @@ extern void configure_and_send_audio_info(struct mhl_dev_context *dev_context, i
 * Platform Related Layer Interface
 */
 extern int HalOpenI2cDevice(char const *DeviceName, char const *DriverName);
-extern Mask_MHL_Intr(void);
-extern Unmask_MHL_Intr(void);
 extern int32_t sii_8348_tx_init(void);    //Should  move to MHL TX Chip user layer
 /**
 * LOG For MHL TX Chip HAL
 */
-static size_t hdmi_log_on = true;
+static size_t hdmi_log_on = false;
 static int txInitFlag = 0;
 
-#define HDMI_LOG(fmt, arg...)  \
+#define MHL_DBG(fmt, arg...)  \
 	do { \
-		if (hdmi_log_on) printk("[HDMI_Chip_HAL]%s,%d,", __func__, __LINE__); printk(fmt, ##arg); \
+		if (hdmi_log_on) pr_debug("[HDMI_Chip_HAL]:"fmt, ##arg);  \
 	}while (0)
 
-#define HDMI_FUNC()    \
+#define MHL_FUNC()    \
 	do { \
-		if(hdmi_log_on) printk("[HDMI_Chip_HAL] %s\n", __func__); \
+		if(hdmi_log_on) pr_debug("[HDMI_Chip_HAL] %s\n", __func__); \
 	}while (0)
+
+#define MHL_NOTICE(fmt, arg...) pr_debug("[HDMI_Chip_HAL]:"fmt, ##arg);
 
 void hdmi_drv_log_enable(bool enable)
 {
@@ -74,16 +74,24 @@ void hdmi_drv_log_enable(bool enable)
 static int not_switch_to_d3 = 0;
 static int audio_enable = 0;
 
+#ifndef CONFIG_MTK_LEGACY 
+extern void i2s_gpio_ctrl(int enable);
+extern void dpi_gpio_ctrl(int enable);
+#endif
+
 void hdmi_drv_force_on(int from_uart_drv )
 {
-    HDMI_LOG("hdmi_drv_force_on %d\n", from_uart_drv);
+    MHL_DBG("hdmi_drv_force_on %d\n", from_uart_drv);
 
     if(from_uart_drv == 0)
         ForceNotSwitchToD3();
     not_switch_to_d3 = 1;
-//gpio:uart
+#ifndef CONFIG_MTK_LEGACY    
+//gpio:uart  to be impl
+    i2s_gpio_ctrl(0);
+#else
     cust_hdmi_i2s_gpio_on(2);
-
+#endif
 }
  
 /************************** Upper Layer To HAL*********************************/
@@ -106,42 +114,129 @@ static char* cable_type_print(unsigned short type)
 		case MHL_2_CABLE:
 			return "MHL_2_CABLE";
 		default:
-			HDMI_LOG("Unknow MHL Cable Type\n");
+			MHL_DBG("Unknow MHL Cable Type\n");
 			return "Unknow MHL Cable Type\n";
 	}	
 }
 
 static HDMI_CABLE_TYPE MHL_Connect_type = MHL_CABLE;
-static bool HDCP_Supported_Info = false;
+static unsigned int HDCP_Supported_Info = 0;
+bool MHL_3D_Support = false;
+int MHL_3D_format=0x00;
 static void hdmi_drv_get_params(HDMI_PARAMS *params)
 {
+	HDMI_VIDEO_RESOLUTION input_resolution = params->init_config.vformat;
 	memset(params, 0, sizeof(HDMI_PARAMS));
-    params->init_config.vformat         = HDMI_VIDEO_1280x720p_60Hz;
+
+	switch (input_resolution)
+	{
+		case HDMI_VIDEO_720x480p_60Hz:
+			params->clk_pol   = HDMI_POLARITY_FALLING;
+			params->de_pol    = HDMI_POLARITY_RISING;
+			params->hsync_pol = HDMI_POLARITY_RISING;
+			params->vsync_pol = HDMI_POLARITY_RISING;;
+			
+			params->hsync_pulse_width = 62;
+			params->hsync_back_porch  = 60;
+			params->hsync_front_porch = 16;
+			
+			params->vsync_pulse_width = 6;
+			params->vsync_back_porch  = 30;
+			params->vsync_front_porch = 9;
+			
+			params->width       = 720;
+			params->height      = 480;
+			params->input_clock = 27027;
+
+			params->init_config.vformat = HDMI_VIDEO_720x480p_60Hz;
+			break;
+		case HDMI_VIDEO_1280x720p_60Hz:
+			params->clk_pol   = HDMI_POLARITY_FALLING;
+			params->de_pol    = HDMI_POLARITY_RISING;
+			params->hsync_pol = HDMI_POLARITY_FALLING;
+			params->vsync_pol = HDMI_POLARITY_FALLING;;
+			
+			params->hsync_pulse_width = 40;
+			params->hsync_back_porch  = 220;
+			params->hsync_front_porch = 110;
+			
+			params->vsync_pulse_width = 5;
+			params->vsync_back_porch  = 20;
+			params->vsync_front_porch = 5;
+		
+			params->width       = 1280;
+			params->height      = 720;
+#ifdef CONFIG_MTK_SMARTBOOK_SUPPORT
+			if (MHL_Connect_type == MHL_SMB_CABLE)
+			{
+				params->width  = 1366;
+				params->height = 768;
+			}
+#endif
+			params->input_clock = 74250;
+
+			params->init_config.vformat = HDMI_VIDEO_1280x720p_60Hz;
+			break;
+		case HDMI_VIDEO_1920x1080p_30Hz:
+			params->clk_pol   = HDMI_POLARITY_FALLING;
+			params->de_pol    = HDMI_POLARITY_RISING;
+			params->hsync_pol = HDMI_POLARITY_FALLING;
+			params->vsync_pol = HDMI_POLARITY_FALLING;;
+			
+			params->hsync_pulse_width = 44;
+			params->hsync_back_porch  = 148;
+			params->hsync_front_porch = 88;
+			
+			params->vsync_pulse_width = 5;
+			params->vsync_back_porch  = 36;
+			params->vsync_front_porch = 4;
+			
+			params->width       = 1920;
+			params->height      = 1080;
+			params->input_clock = 74250;
+
+			params->init_config.vformat = HDMI_VIDEO_1920x1080p_30Hz;
+			break;
+		case HDMI_VIDEO_1920x1080p_60Hz:
+			params->clk_pol   = HDMI_POLARITY_FALLING;
+			params->de_pol    = HDMI_POLARITY_RISING;
+			params->hsync_pol = HDMI_POLARITY_FALLING;
+			params->vsync_pol = HDMI_POLARITY_FALLING;;
+			
+			params->hsync_pulse_width = 44;
+			params->hsync_back_porch  = 148;
+			params->hsync_front_porch = 88;
+			
+			params->vsync_pulse_width = 5;
+			params->vsync_back_porch  = 36;
+			params->vsync_front_porch = 4;
+			
+			params->width       = 1920;
+			params->height      = 1080;
+			params->input_clock = 148500;
+
+			params->init_config.vformat = HDMI_VIDEO_1920x1080p_60Hz;
+			break;
+		default:
+			MHL_DBG("Unknow support resolution\n");
+			break;
+	}
+
     params->init_config.aformat         = HDMI_AUDIO_44K_2CH;
-
-	params->clk_pol           			= HDMI_POLARITY_FALLING;
-	params->de_pol            			= HDMI_POLARITY_RISING;
-	params->vsync_pol         			= HDMI_POLARITY_RISING;
-	params->hsync_pol        		    = HDMI_POLARITY_RISING;
-
-	params->hsync_front_porch 			= 110;
-	params->hsync_pulse_width 			= 40;
-	params->hsync_back_porch  			= 220;
-
-	params->vsync_front_porch 			= 5;
-	params->vsync_pulse_width 			= 5;
-	params->vsync_back_porch  			= 20;
-
 	params->rgb_order         			= HDMI_COLOR_ORDER_RGB;
-
 	params->io_driving_current 			= IO_DRIVING_CURRENT_2MA;
 	params->intermediat_buffer_num 		= 4;
     params->scaling_factor 				= 0;
     params->cabletype 					= MHL_Connect_type;
 	params->HDCPSupported 				= HDCP_Supported_Info;
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT	
+    if(MHL_Connect_type== MHL_3D_GLASSES)    
+        params->cabletype 				= MHL_CABLE;
 
-    HDMI_LOG("type %s\n", cable_type_print(params->cabletype));
-	return ;
+	params->is_3d_support 				= MHL_3D_Support;
+#endif
+    MHL_DBG("type %s-%d hdcp %d-%d\n", cable_type_print(params->cabletype), MHL_Connect_type, params->HDCPSupported, HDCP_Supported_Info);
+
 }
 
 void hdmi_drv_suspend(void) {return ;}
@@ -161,13 +256,16 @@ static int hdmi_drv_video_enable(bool enable)
 
 static int hdmi_drv_audio_enable(bool enable)  
 {
-    printk("[EXTD]Set_I2S_Pin, enable = %d\n", enable);            
+    MHL_DBG("[EXTD]Set_I2S_Pin, enable = %d\n", enable);            
     //gpio:uart
+#ifdef CONFIG_MTK_LEGACY    
     if(not_switch_to_d3 == 1)
         cust_hdmi_i2s_gpio_on(2);
     else
         cust_hdmi_i2s_gpio_on(enable);
-
+#else
+	i2s_gpio_ctrl(1);
+#endif
     audio_enable = enable;
     return 0;
 }
@@ -175,35 +273,63 @@ static int hdmi_drv_audio_enable(bool enable)
 static int hdmi_drv_enter(void)  {return 0;}
 static int hdmi_drv_exit(void)  {return 0;}
 
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
+extern void si_mhl_tx_drv_video_3d_update(struct mhl_dev_context *dev_context, int video_3d);
+extern void si_mhl_tx_drv_video_3d(struct mhl_dev_context *dev_context, int video_3d);
+static int hdmi_drv_video_config(HDMI_VIDEO_RESOLUTION vformat, HDMI_VIDEO_INPUT_FORMAT vin, int vout)
+#else
 static int hdmi_drv_video_config(HDMI_VIDEO_RESOLUTION vformat, HDMI_VIDEO_INPUT_FORMAT vin, HDMI_VIDEO_OUTPUT_FORMAT vout)
+#endif
 {
 	if(vformat == HDMI_VIDEO_720x480p_60Hz)
 	{
-		HDMI_LOG("[hdmi_drv]480p\n");
+		MHL_DBG("[video_config]480p\n");
 		siHdmiTx_VideoSel(HDMI_480P60_4X3);
 	}
 	else if(vformat == HDMI_VIDEO_1280x720p_60Hz)
 	{
-		HDMI_LOG("[hdmi_drv]720p\n");
+		MHL_DBG("[video_config]720p\n");
 		siHdmiTx_VideoSel(HDMI_720P60);
 	}
 	else if(vformat == HDMI_VIDEO_1920x1080p_30Hz)
 	{
-		HDMI_LOG("[hdmi_drv]1080p_30 %p\n", si_dev_context);
+		MHL_DBG("[video_config]1080p_30 %p\n", si_dev_context);
 		siHdmiTx_VideoSel(HDMI_1080P30);
 	}
 	else if(vformat == HDMI_VIDEO_1920x1080p_60Hz)
 	{
-		HDMI_LOG("[hdmi_drv]1080p_60 %p\n", si_dev_context);
+		MHL_DBG("[video_config]1080p_60 %p\n", si_dev_context);
 		siHdmiTx_VideoSel(HDMI_1080P60);
 	}
 	else
 	{
-		HDMI_LOG("%s, video format not support now\n", __func__);
+		MHL_DBG("%s, video format not support now\n", __func__);
 	}
-	
+
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
+	if(vout & HDMI_VOUT_FORMAT_3D_SBS)
+        MHL_3D_format=VIDEO_3D_SS;
+	else if(vout & HDMI_VOUT_FORMAT_3D_TAB)
+	    MHL_3D_format=VIDEO_3D_TB;
+    else
+	    MHL_3D_format = VIDEO_3D_NONE;
+	    
+	if(si_dev_context)
+	{	    
+        MHL_DBG("video format  -- %d, 0x%x, %d\n", MHL_3D_Support, vout, MHL_3D_format);
+		if(vformat < HDMI_VIDEO_RESOLUTION_NUM)
+		{
+		    ///if(MHL_3D_Support && (MHL_3D_format > 0))
+		    si_mhl_tx_drv_video_3d(si_dev_context, MHL_3D_format);			
+            si_mhl_tx_set_path_en_I(si_dev_context);
+		}
+		else
+		    si_mhl_tx_drv_video_3d_update(si_dev_context, MHL_3D_format);
+ 	}
+ #else
     if(si_dev_context)
     	si_mhl_tx_set_path_en_I(si_dev_context);
+ #endif
     return 0;
 }
 
@@ -215,7 +341,7 @@ static uint8_t ReadConnectionStatus(void)
 HDMI_STATE hdmi_drv_get_state(void)
 {
 	int ret = ReadConnectionStatus();
-	HDMI_LOG("ret: %d\n", ret);
+	MHL_DBG("ret: %d\n", ret);
 	
 	if(ret == 1)
 		return HDMI_STATE_ACTIVE;
@@ -226,18 +352,24 @@ HDMI_STATE hdmi_drv_get_state(void)
 bool chip_inited = false;
 static int hdmi_drv_init(void)
 {
-    HDMI_LOG("hdmi_drv_init, not_switch_to_d3: %d\n", not_switch_to_d3);
+    MHL_DBG("hdmi_drv_init, not_switch_to_d3: %d, init-%d\n", not_switch_to_d3, chip_inited);
+    if(chip_inited == TRUE)
+        return 0;
 
-	Mask_MHL_Intr();
 	cust_hdmi_power_on(true);
-	if(not_switch_to_d3 == 0)
+	if(not_switch_to_d3 == 0) 
     {
         HalOpenI2cDevice("Sil_MHL", "sii8348drv");
 	}
 	
 	txInitFlag = 0;
-	chip_inited = false;
-    HDMI_LOG("hdmi_drv_init -\n" );
+	chip_inited = true;
+#ifdef CONFIG_MTK_LEGACY     
+        cust_hdmi_dpi_gpio_on(0);
+#else
+        dpi_gpio_ctrl(0);
+#endif
+    MHL_DBG("hdmi_drv_init -\n" );
     return 0;
 }
 
@@ -247,18 +379,21 @@ bool need_reset_usb_switch = true;
 int hdmi_drv_power_on(void)
 {
     int ret = 1;
-	HDMI_FUNC();
+    MHL_FUNC();
 
 /*
     if(not_switch_to_d3 > 0)
     {
-        HDMI_LOG("hdmi_drv_power_on direct to exit for forceon(%d_\n", not_switch_to_d3);
+        MHL_DBG("hdmi_drv_power_on direct to exit for forceon(%d_\n", not_switch_to_d3);
         return ;
     }
 */
-    
+#ifdef CONFIG_MTK_LEGACY     
 	cust_hdmi_power_on(true);	
-	cust_hdmi_dpi_gpio_on(true);    
+	cust_hdmi_dpi_gpio_on(true);  
+#else
+	dpi_gpio_ctrl(1);
+#endif	
     //cust_hdmi_i2s_gpio_on(true);   
     
 	if(txInitFlag == 0)
@@ -293,8 +428,7 @@ power_on_exit:
     if(chip_device_id >0)
         ret = 0;
 	
-	///Unmask_MHL_Intr();
-    HDMI_LOG("status %d, chipid: %x, ret: %d--%d\n", ReadConnectionStatus() , chip_device_id, ret, need_reset_usb_switch);        
+    MHL_DBG("status %d, chipid: %x, ret: %d--%d\n", ReadConnectionStatus() , chip_device_id, ret, need_reset_usb_switch);        
 
     return ret;
 }
@@ -302,22 +436,26 @@ power_on_exit:
 void hdmi_drv_power_off(void)
 {
 
-	HDMI_FUNC();
+	MHL_FUNC();
 	
     if(not_switch_to_d3 > 0)
     {
-        HDMI_LOG("hdmi_drv_power_off direct to exit for forceon(%d_\n", not_switch_to_d3 );
+        MHL_DBG("hdmi_drv_power_off direct to exit for forceon(%d_\n", not_switch_to_d3 );
         return ;
     }
 
+
+#ifdef CONFIG_MTK_LEGACY      
     cust_hdmi_dpi_gpio_on(false);
     if(audio_enable == 0)
 	    cust_hdmi_i2s_gpio_on(false);
-
+#else
+    if(audio_enable == 0)
+	    i2s_gpio_ctrl(1);
+    dpi_gpio_ctrl(0);
+#endif
   	return ;
 	
-	Mask_MHL_Intr();
-
     if(ReadConnectionStatus()==1){
         need_reset_usb_switch = true;
     	 ForceSwitchToD3(si_dev_context);
@@ -331,7 +469,12 @@ void hdmi_drv_power_off(void)
 
 }
 
-
+/* for otg currency leakage */
+void switch_mhl_to_d3(void)
+{    
+    if(si_dev_context)
+        ForceSwitchToD3(si_dev_context);
+}
 static unsigned int pal_resulution = 0;
 void update_av_info_edid(bool audio_video, unsigned int param1, unsigned int param2)
 {
@@ -355,7 +498,7 @@ void update_av_info_edid(bool audio_video, unsigned int param1, unsigned int par
             	pal_resulution |= SINK_480P;
             	break;
 			default:
-				HDMI_LOG("param1: %d\n", param1);
+				MHL_DBG("param1: %d\n", param1);
     	}
 	}	
 
@@ -367,12 +510,7 @@ unsigned int si_mhl_get_av_info()
     
     if(pal_resulution&SINK_1080P60)
         pal_resulution &= (~temp);
-
-#ifdef MHL_RESOLUTION_LIMIT_720P_60
-	pal_resulution &= (~SINK_1080P60);
-	pal_resulution &= (~SINK_1080P30);
-#endif
-
+        
     return pal_resulution;
 }
 void reset_av_info()
@@ -388,7 +526,7 @@ void hdmi_GetEdidInfo(void *pv_get_info)
 		ptr->ui4_pal_resolution = si_mhl_get_av_info();
 		if(ptr->ui4_pal_resolution == 0)
 		{
-			HDMI_LOG("MHL edid parse error \n");
+			MHL_DBG("MHL edid parse error \n");
 			
 	        if(si_dev_context && packed_pixel_available(si_dev_context))
 	            ptr->ui4_pal_resolution = SINK_720P60 | SINK_1080P60 | SINK_480P;
@@ -397,9 +535,22 @@ void hdmi_GetEdidInfo(void *pv_get_info)
 		}
     }
 
+#ifdef MHL_RESOLUTION_LIMIT_720P_60
+		ptr->ui4_pal_resolution &= (~SINK_1080P60);
+		ptr->ui4_pal_resolution &= (~SINK_1080P30);
+#endif
+
+#ifdef MHL_RESOLUTION_LIMIT_1080P_30
+		if(ptr->ui4_pal_resolution & SINK_1080P60)
+		{
+			ptr->ui4_pal_resolution &= (~SINK_1080P60);
+			ptr->ui4_pal_resolution |= SINK_1080P30;
+		}
+#endif
+
     if(si_dev_context)
     {
-        HDMI_LOG("MHL hdmi_GetEdidInfo ntsc 0x%x,pal: 0x%x, packed: %d, parsed 0x%x\n", ptr->ui4_ntsc_resolution  , 
+        MHL_DBG("MHL hdmi_GetEdidInfo ntsc 0x%x,pal: 0x%x, packed: %d, parsed 0x%x\n", ptr->ui4_ntsc_resolution  , 
         	ptr->ui4_pal_resolution, packed_pixel_available(si_dev_context), si_mhl_get_av_info());
     }
 
@@ -412,7 +563,7 @@ extern uint8_t  Cap_Samplebit;
 
 int hdmi_drv_get_external_device_capablity(void)
 {
-	HDMI_LOG("Cap_MAX_channel: %d, Cap_Samplebit: %d, Cap_SampleRate: %d\n", Cap_MAX_channel, Cap_Samplebit, Cap_SampleRate);
+	MHL_DBG("Cap_MAX_channel: %d, Cap_Samplebit: %d, Cap_SampleRate: %d\n", Cap_MAX_channel, Cap_Samplebit, Cap_SampleRate);
 	int capablity = Cap_MAX_channel << 3 | Cap_SampleRate << 7 | Cap_Samplebit << 10;
 
 	if(capablity == 0)
@@ -440,12 +591,12 @@ int hdmi_register_cable_insert_callback(CABLE_INSERT_CALLBACK cb)
             break;
     }
     if (i == HDMI_MAX_INSERT_CALLBACK) {
-        HDMI_LOG("not enough mhl callback entries for module\n");
+        MHL_DBG("not enough mhl callback entries for module\n");
         return -1;
     }
 
     hdmi_callback_table[i] = cb;
-	HDMI_LOG("callback: %p,i: %d\n", hdmi_callback_table[i], i);
+	MHL_DBG("callback: %p,i: %d\n", hdmi_callback_table[i], i);
     return 0;
 }
 
@@ -456,14 +607,14 @@ int hdmi_unregister_cable_insert_callback(CABLE_INSERT_CALLBACK cb)
     {
         if (hdmi_callback_table[i] == cb)
         {
-        	HDMI_LOG("unregister cable insert callback: %p, i: %d\n", hdmi_callback_table[i], i);
+        	MHL_DBG("unregister cable insert callback: %p, i: %d\n", hdmi_callback_table[i], i);
             hdmi_callback_table[i] = NULL;
             break;
         }
     }
     if (i == HDMI_MAX_INSERT_CALLBACK)
     {
-        HDMI_LOG("Try to unregister callback function 0x%lx which was not registered\n",(unsigned long int)cb);
+        MHL_DBG("Try to unregister callback function 0x%lx which was not registered\n",(unsigned long int)cb);
         return -1;
     }
     return 0;
@@ -482,7 +633,7 @@ void hdmi_invoke_cable_callbacks(HDMI_STATE state)
 
 	if (hdmi_callback_table[j])
 	{
-		HDMI_LOG("callback: %p, state: %d, j: %d\n", hdmi_callback_table[j], state, j);
+		MHL_DBG("callback: %p, state: %d, j: %d\n", hdmi_callback_table[j], state, j);
 		hdmi_callback_table[j](state);
 	}
 }
@@ -514,7 +665,7 @@ const HDMI_DRIVER* HDMI_GetDriver(void)
         .force_on = hdmi_drv_force_on,
 	};
 
-    HDMI_FUNC();
+    MHL_FUNC();
 	return &HDMI_DRV;
 }
 /************************** ****************************************************/
@@ -585,7 +736,7 @@ static char* MHL_TX_Event_Print(unsigned int event)
 		case MHL_TX_EVENT_SMB_DATA:
 			return "MHL_TX_EVENT_SMB_DATA";
 		default:
-			HDMI_LOG("Unknow MHL TX Event Type\n");
+			MHL_DBG("Unknow MHL TX Event Type\n");
 			return "Unknow MHL TX Event Type\n";
 	}	
 }
@@ -593,13 +744,14 @@ static char* MHL_TX_Event_Print(unsigned int event)
 void Notify_AP_MHL_TX_Event(unsigned int event, unsigned int event_param, void *param)
 {
 	if(event != MHL_TX_EVENT_SMB_DATA)
-		HDMI_LOG("%s, event_param: %d\n", MHL_TX_Event_Print(event), event_param);
+		MHL_DBG("%s, event_param: %d\n", MHL_TX_Event_Print(event), event_param);
 	switch(event)
 	{
 		case MHL_TX_EVENT_CONNECTION:
 			break;
 		case MHL_TX_EVENT_DISCONNECTION:
 		{
+			MHL_NOTICE("%s, event_param: %d\n", MHL_TX_Event_Print(event), event_param);
 			sii_mhl_connected = MHL_TX_EVENT_DISCONNECTION;
 			hdmi_invoke_cable_callbacks(HDMI_STATE_NO_DEVICE);
 			reset_av_info();
@@ -617,7 +769,12 @@ void Notify_AP_MHL_TX_Event(unsigned int event, unsigned int event_param, void *
 			break;
 		case MHL_TX_EVENT_DEV_CAP_UPDATE:
 		{
-			MHL_Connect_type = MHL_SMB_CABLE;			
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT		
+		    if(event_param == 0xBA)
+                MHL_Connect_type = MHL_3D_GLASSES;	
+		    else		    
+#endif		    
+    			MHL_Connect_type = MHL_SMB_CABLE;			
 		}
 			break;
 		case MHL_TX_EVENT_EDID_UPDATE:
@@ -627,9 +784,11 @@ void Notify_AP_MHL_TX_Event(unsigned int event, unsigned int event_param, void *
 			break;
 		case MHL_TX_EVENT_EDID_DONE:
 		{
-#ifdef HDCP_ENABLE
-			HDCP_Supported_Info = true;
-#endif
+			MHL_NOTICE("%s, event_param: %d\n", MHL_TX_Event_Print(event), event_param);
+///#ifdef HDCP_ENABLE
+      if(chip_device_id == 0x8346)
+			    HDCP_Supported_Info = 140; ///HDCP 1.4
+///#endif
 			sii_mhl_connected = MHL_TX_EVENT_CALLBACK;
 			hdmi_invoke_cable_callbacks(HDMI_STATE_ACTIVE);
 			SMB_Init();

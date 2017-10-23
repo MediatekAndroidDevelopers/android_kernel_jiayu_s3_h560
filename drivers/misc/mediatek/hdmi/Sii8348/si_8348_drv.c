@@ -52,10 +52,14 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #endif
 
 #include <mach/irqs.h>
+#ifdef CONFIG_MTK_LEGACY
 #include "mach/eint.h"
-#include <mach/mt_gpio.h>
+#include <cust_eint.h>
 #include <cust_gpio_usage.h>
 #include <cust_eint.h>
+#endif
+
+#include <mach/mt_gpio.h>
 #include "hdmi_drv.h"
 #include "mhl_supp.h"
 #include "smartbook.h"
@@ -507,7 +511,7 @@ int si_mhl_tx_drv_get_edid_fifo_next_block(struct drv_hw_context *hw_context, ui
 
 	memcpy(edid_buf, hw_context->current_edid_block_data + offset , EDID_BLOCK_SIZE);
 /*
-	// Need to use 'printk' to keep the formatting
+	// Need to use 'pr_debug' to keep the formatting
 	if ( DBG_MSG_LEVEL_EDID_READ > debug_msgs )
 	{
 		// do nothing
@@ -518,15 +522,15 @@ int si_mhl_tx_drv_get_edid_fifo_next_block(struct drv_hw_context *hw_context, ui
 #if 0		
 		for ( i = 0; i < 8; i ++)
 		{
-			printk("ROW %d:\t\t", i);
+			pr_debug("ROW %d:\t\t", i);
 			for (j=0; j<16; j++)
 			{
-				printk("%02X:%02X\t", j, edid_buf[i * 16 + j]);		// buffer data
-				//printk("%02X:%02X\t", j, hw_context->current_edid_block_data[offset + i * 16 + j]);	// block data
+				pr_debug("%02X:%02X\t", j, edid_buf[i * 16 + j]);		// buffer data
+				//pr_debug("%02X:%02X\t", j, hw_context->current_edid_block_data[offset + i * 16 + j]);	// block data
 			}
-			printk("\n");
+			pr_debug("\n");
 		}
-		printk("\n");
+		pr_debug("\n");
 	
 	DUMP_EDID_BLOCK(0,edid_buf, EDID_BLOCK_SIZE);
 #endif
@@ -750,7 +754,7 @@ static int set_hdmi_params(struct mhl_dev_context *dev_context)
 // check if DPI signal is normal
 	uint16_t h_total = si_mhl_tx_drv_get_incoming_horizontal_total(dev_context);
 	uint16_t v_total = si_mhl_tx_drv_get_incoming_vertical_total(dev_context);
-	MHL_TX_DBG_INFO(hw_context, "h_total :%u,v_total:%u\n", h_total,v_total );
+	MHL_TX_DBG_WARN(hw_context, "h_total :%u,v_total:%u\n", h_total,v_total );
 
 //
 	/* Extract VIC from incoming AVIF */
@@ -764,7 +768,8 @@ static int set_hdmi_params(struct mhl_dev_context *dev_context)
 	 */
 	threeDPixelClockRatio = 1;
 	si_mhl_tx_drv_get_incoming_horizontal_total(hw_context);
-#if 0
+
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
 	if (hw_context->valid_vsif && hw_context->valid_3d)
 	{
 		MHL_TX_DBG_WARN(, "valid HDMI VSIF\n");
@@ -774,22 +779,13 @@ static int set_hdmi_params(struct mhl_dev_context *dev_context)
 			MHL_TX_DBG_ERR(,"AVI VIC is zero!!!\n");
 			return false;
 		}
-		// TODO: FD, MUST, check this to support 3D properly
-		/*
-		if (hvf3DFormatIndicationPresent == hw_context->current_vs_info_frame.
-				payLoad.pb4.HDMI_Video_Format) {
-
-			MHL_TX_DBG_INFO(dev_context,"VSIF indicates 3D\n");
-			if (tdsFramePacking == hw_context->current_vs_info_frame.
-					payLoad.pb5.ThreeDStructure.threeDStructure) {
-
-				MHL_TX_DBG_INFO(dev_context, "mhl_tx: tdsFramePacking\n");
-				threeDPixelClockRatio = 2;
-			}
+		if ( 1 == hw_context->valid_3d_fs )
+		{
+			MHL_TX_DBG_INFO(dev_context, "3D Pixel Clock Ratio: Frame Packing\n");
+			threeDPixelClockRatio = 2;
 		}
-		*/
 	}
-	#endif
+#endif
 	#if 0
 	else
 	{ 	/* no VSIF */
@@ -979,65 +975,7 @@ static int set_hdmi_params(struct mhl_dev_context *dev_context)
 	return true;
 }
 
-/*
-	process_info_frame_change
-		called by the MHL Tx driver when a
-        new AVI info frame is received from upstream
-		OR
-		called by customer's SOC video driver when a mode change is desired.
-*/
-/*
-void process_info_frame_change(struct drv_hw_context *hw_context
-		, vendor_specific_info_frame_t *vsif
-		, avi_info_frame_t *avif)
-{
-	bool mode_change = false;
-	struct mhl_dev_context	*dev_context;
 
-	dev_context = container_of((void *)hw_context, struct mhl_dev_context, drv_context);
-
-	if (NULL != vsif) {
-		if(is_valid_vsif(dev_context, vsif)) {			// TODO: FD, TBI, any need to do the check? may remove it later
-			memcpy( (void *)&(hw_context->current_vs_info_frame), (void *)vsif, sizeof(vendor_specific_info_frame_t));
-			hw_context->valid_vsif = 1;
-			mode_change = true;
-		}
-		else
-		{
-			MHL_TX_DBG_INFO(hw_context, "It's NOT a valid VSIF!\n");
-			hw_context->valid_vsif = 0;
-		}
-	}
-	if (NULL != avif) {
-		if(is_valid_avi_info_frame(dev_context, avif)) {	// TODO: FD, TBI, any need to do the check? may remove it later
-			memcpy( (void *)&(hw_context->current_avi_info_frame), (void *)avif, sizeof(avi_info_frame_t));
-			hw_context->valid_avif = 1;
-			mode_change = true;
-		}
-		else
-		{
-			MHL_TX_DBG_INFO(hw_context, "It's NOT a valid AVIF!\n");
-			hw_context->valid_avif = 0;
-		}
-	}
-
-	// No need to check Audio IF
-
-	// Save the changes only, no need to proceed if EDID is not yet parsed
-	if ( false == dev_context->edid_parse_done )
-	{
-		return;
-	}
-
-	if (mode_change) {
-		// TODO: FD, TBI, any appoach to check source stability in Drake? If any, "do_the_check"
-		//	if ( do_the_check() )
-		{
-			start_video(hw_context,dev_context->edid_parser_context);
-		}
-	}
-}
-*/
 #define dump_edid_fifo(hw_context, block_number) /* do nothing */
 
 int si_mhl_tx_drv_set_upstream_edid(struct drv_hw_context *hw_context, uint8_t *edid, uint16_t length)
@@ -1405,25 +1343,25 @@ void dump_audio_register(struct drv_hw_context *hw_context, int audio)
 		value = mhl_tx_read_reg(hw_context, TX_PAGE_TPI, 0x0028);
 		MHL_TX_DBG_ERR(hw_context, "TX_PAGE_TPI:0x0028 : 0x%x\n", value);
 
-		printk("/********************************Start*********************************/\n");
-		printk("Dump TX_PAGE_TPI 0x001F -> 0x0027 Registers\n");
+		pr_debug("/********************************Start*********************************/\n");
+		pr_debug("Dump TX_PAGE_TPI 0x001F -> 0x0027 Registers\n");
 		offset = 0x001F;
 		for(offset=0x001F; offset<=0x0028; offset++)
 		{
 			value = mhl_tx_read_reg(hw_context, TX_PAGE_TPI, offset);
 			MHL_TX_DBG_ERR(hw_context, "TX_PAGE_TPI:0x%x : 0x%x\n", offset, value);
 		}
-		printk("/********************************End***********************************/\n");
+		pr_debug("/********************************End***********************************/\n");
 
-		printk("/********************************Start*********************************/\n");
-		printk("Dump TX_PAGE_L1 0x0000 -> 0x0034 Registers\n");
+		pr_debug("/********************************Start*********************************/\n");
+		pr_debug("Dump TX_PAGE_L1 0x0000 -> 0x0034 Registers\n");
 		offset = 0x0000;
 		for(offset=0x0000; offset<=0x0034; offset++)
 		{
 			value = mhl_tx_read_reg(hw_context, TX_PAGE_L1, offset);
 			MHL_TX_DBG_ERR(hw_context, "TX_PAGE_L1:0x%x : 0x%x\n", offset, value);
 		}
-		printk("/********************************End***********************************/\n");
+		pr_debug("/********************************End***********************************/\n");
 	}
 }
 
@@ -1807,7 +1745,9 @@ static void unmute_video(struct drv_hw_context *hw_context)
 		/*
 		 * Send VSIF out
 		 */
+#ifndef CONFIG_MTK_HDMI_3D_SUPPORT		 
 		if ( 1 == hw_context->valid_vsif && 1 == hw_context->valid_3d )
+#endif		
 		{
 			MHL_TX_DBG_INFO(hw_context, "Send VSIF out...\n");
 			mhl_tx_write_reg(hw_context, REG_TPI_INFO_FSEL, BIT_TPI_INFO_EN | BIT_TPI_INFO_RPT | BIT_TPI_INFO_SEL_3D_VSIF);	// Send 3D VSIF repeatly
@@ -2173,10 +2113,10 @@ static int int_3_isr(struct drv_hw_context *hw_context, uint8_t int_3_status)
 /*
 			for (i = 0; i < 16; i++)
 			{
-				printk("%02X:%02X    ", i, hw_context->current_edid_block_data[block_offset+i] );
+				pr_debug("%02X:%02X    ", i, hw_context->current_edid_block_data[block_offset+i] );
 				if (15 == i )
 				{
-					printk("\n");
+					pr_debug("\n");
 				}
 			}
 */
@@ -2797,12 +2737,17 @@ static int get_device_rev(struct drv_hw_context *hw_context)
  * @param[in]	hwResetDelay	Time in ms. to wait after reset pin is released.
  *
  *****************************************************************************/
+ #ifndef CONFIG_MTK_LEGACY
+ extern void reset_mhl_board(int hwResetPeriod, int hwResetDelay);
+ #endif 
 static void board_reset(struct drv_hw_context *hw_context,
 		uint16_t hwResetPeriod,
 		uint16_t hwResetDelay)
 {
+#ifdef CONFIG_MTK_LEGACY
+
 #if defined(GPIO_MHL_RST_B_PIN)
-    printk("%s,%d+\n", __func__, __LINE__);
+    pr_debug("%s,%d+\n", __func__, __LINE__);
     mt_set_gpio_mode(GPIO_MHL_RST_B_PIN, GPIO_MODE_00);
     mt_set_gpio_dir(GPIO_MHL_RST_B_PIN, GPIO_DIR_OUT);
     mt_set_gpio_out(GPIO_MHL_RST_B_PIN, GPIO_OUT_ONE);
@@ -2812,7 +2757,7 @@ static void board_reset(struct drv_hw_context *hw_context,
     mt_set_gpio_out(GPIO_MHL_RST_B_PIN, GPIO_OUT_ONE);
     mdelay(hwResetDelay);
 #elif defined(CONFIG_MTK_MT6306_SUPPORT)
-    printk(":MT6306 %s,%d\n", __func__, __LINE__);
+    pr_debug(":MT6306 %s,%d\n", __func__, __LINE__);
     mt6306_set_gpio_dir(GPIO4, GPIO_DIR_OUT);
     mt6306_set_gpio_out(GPIO4, GPIO_OUT_ONE);
     mdelay(hwResetPeriod);
@@ -2821,9 +2766,12 @@ static void board_reset(struct drv_hw_context *hw_context,
     mt6306_set_gpio_out(GPIO4, GPIO_OUT_ONE);
     mdelay(hwResetDelay);
 #else
-    printk("%s,%d Error: GPIO_MHL_RST_B_PIN is not defined\n", __func__, __LINE__);
+    pr_debug("%s,%d Error: GPIO_MHL_RST_B_PIN is not defined\n", __func__, __LINE__);
 #endif
 
+#else
+    reset_mhl_board(hwResetPeriod, hwResetDelay);
+#endif
 }
 
 /*
@@ -2863,7 +2811,8 @@ static void clear_and_disable_on_disconnect(struct drv_hw_context *hw_context)
 /*
  * This function performs s/w as well as h/w state transitions.
  */
-static void switch_to_d3(struct drv_hw_context *hw_context,bool do_interrupt_clear)
+
+void switch_to_d3(struct drv_hw_context *hw_context,bool do_interrupt_clear)
 {
     // TODO: FD, TBC, any need to change local timing status to INITIAL??? => per latest tests, it works just find during hot-plugs, may not need to do this
     MHL_TX_DBG_INFO(hw_context, "switch_to_d3 called, do_interrupt_clear=%d\n",do_interrupt_clear);
@@ -2897,7 +2846,7 @@ static void switch_to_d3(struct drv_hw_context *hw_context,bool do_interrupt_cle
 	///MHL_TX_DBG_INFO(hw_context, "after switch D3,mhl_tx_read_reg(hw_context, REG_INTR4)=0x%x \n",mhl_tx_read_reg(hw_context, REG_INTR4));
 }
 
-
+/* for otg currency leakage */
 void	ForceSwitchToD3( struct mhl_dev_context *dev_context)
 {
     MHL_TX_DBG_INFO((struct drv_hw_context *)(&dev_context->drv_context), "ForceSwitchToD3..............\n");
@@ -2910,6 +2859,10 @@ void	ForceSwitchToD3( struct mhl_dev_context *dev_context)
     */
     //mhl_tx_modify_reg((struct drv_hw_context *)(&dev_context->drv_context), REG_DPD,
     //                             BIT_MASTER_POWER_CTRL,  0x00);
+    mhl_tx_modify_reg((struct drv_hw_context *)(&dev_context->drv_context), REG_DISC_CTRL1, BIT_DISC_CTRL1_STROBE_OFF, 0);
+    mhl_tx_modify_reg((struct drv_hw_context *)(&dev_context->drv_context), REG_DPD, BIT_MASTER_POWER_CTRL, 0);
+
+    MHL_TX_DBG_INFO((struct drv_hw_context *)(&dev_context->drv_context), "!!!!!!!!!!!. ForceSwitchToD3 to D3 0x%x\n", mhl_tx_read_reg((struct drv_hw_context *)(&dev_context->drv_context), REG_INTR4));
 	return;
 }
 
@@ -3009,6 +2962,9 @@ static int int_4_isr(struct drv_hw_context *hw_context, uint8_t int_4_status)
 					0x80, 0x80);
 		if(0x02 == (mhl_tx_read_reg(hw_context, REG_DISC_STAT2) & 0x03)) {
 			MHL_TX_DBG_INFO(hw_context, "Cable impedance = 1k (MHL Device)\n");
+			/* Call platform function to turn the VBUS on for unpowered dongle */
+			mhl_tx_vbus_control(VBUS_ON);
+			msleep(100);
 			mhl_tx_write_reg(hw_context, REG_DISC_CTRL1, 0x27);
 			/*************************************************************/
 			
@@ -3036,9 +2992,7 @@ static int int_4_isr(struct drv_hw_context *hw_context, uint8_t int_4_status)
 					| BIT_DC9_DISC_PULSE_PROCEED
 					);
 
-			/* Call platform function to turn the VBUS on for unpowered dongle */
-			mhl_tx_vbus_control(VBUS_ON);
-			msleep(100);
+			
 		}
 		/* enable remaining discovery interrupts */
 		enable_intr(hw_context, INTR_DISC,
@@ -3323,7 +3277,9 @@ int si_mhl_tx_chip_initialize(struct drv_hw_context *hw_context)
 		hw_context->valid_vsif = 0;
 		//hw_context->valid_avif = 0;
 		hw_context->valid_3d = 0;
-
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT		
+		hw_context->valid_3d_fs = 0;
+#endif
 		//hw_context->current_audio_configure = 0;
 		//memset( hw_context->current_audio_info_frame, 0, AUDIO_IF_SIZE );
 		memset(&hw_context->current_vs_info_frame, 0, sizeof(hw_context->current_vs_info_frame));
@@ -3425,3 +3381,266 @@ void siHdmiTx_AudioSel (int AduioMode)
 	siHdmiTx.AudioI2SFormat		= (MCLK256FS << 4) |SCK_SAMPLE_RISING_EDGE |0x00; //last num 0x00-->0x02
 	*/
 }
+
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
+#define SIZE_VSIF					8
+static uint8_t calculate_vsif_checksum(uint8_t *vsif)
+{
+	uint8_t checksum = 0;
+
+	return calculate_generic_checksum(vsif, checksum, SIZE_VSIF);
+}
+
+static int is_valid_vsif(struct mhl_dev_context *dev_context, vendor_specific_info_frame_t *vsif)
+{
+	uint8_t	checksum;
+
+	/*
+		Calculate the checksum assuming that the payload includes the checksum
+	*/
+	checksum = calculate_generic_checksum((uint8_t *)vsif, 0,
+			sizeof(vsif->header) + vsif->header.length );
+	if (0 != checksum) {
+		MHL_TX_DBG_WARN(dev_context, "VSIF info frame checksum is: 0x%02x should be 0\n", checksum);
+		/*
+			Try again, assuming that the header includes the checksum.
+		*/
+		checksum = calculate_generic_checksum((uint8_t *)vsif, 0,
+			sizeof(vsif->header) + vsif->header.length
+			+ sizeof(vsif->payLoad.checksum));
+		if (0 != checksum){
+			MHL_TX_DBG_ERR(dev_context, "VSIF info frame checksum "
+					"(adjusted for checksum itself) is: 0x%02x "
+						   "should be 0\n", checksum);
+			return 0;
+		}
+	} 
+	if (0x81 != vsif->header.type_code) {
+		MHL_TX_DBG_ERR(dev_context, "Invalid VSIF type code: 0x%02x\n",
+					   vsif->header.type_code);
+		return 0;
+
+	} else if (0x01 != vsif->header.version_number) {
+		MHL_TX_DBG_ERR(dev_context, "Invalid VSIF version: 0x%02x\n",
+					   vsif->header.version_number);
+		return 0;
+
+	} else {
+		return 1;
+	}
+}
+
+/*
+	process_info_frame_change
+		called by the MHL Tx driver when a
+        new AVI info frame is received from upstream
+		OR
+		called by customer's SOC video driver when a mode change is desired.
+*/
+
+void process_info_frame_change(struct drv_hw_context *hw_context
+		, vendor_specific_info_frame_t *vsif
+		, avi_info_frame_t *avif)
+{
+	bool mode_change = false;
+	struct mhl_dev_context	*dev_context;
+
+	dev_context = container_of((void *)hw_context, struct mhl_dev_context, drv_context);
+
+	if (NULL != vsif) {
+		if(is_valid_vsif(dev_context, vsif)) {
+		    MHL_TX_DBG_INFO(hw_context, "refresh VISF!!!!!!!\n");
+			memcpy( (void *)&(hw_context->current_vs_info_frame), (void *)vsif, sizeof(vendor_specific_info_frame_t));
+			hw_context->valid_vsif = 1;
+			mode_change = true;
+		}
+		else
+		{
+			MHL_TX_DBG_INFO(hw_context, "It's NOT a valid VSIF!\n");
+			hw_context->valid_vsif = 0;
+		}
+	}
+	/*if (NULL != avif) {
+		if(is_valid_avi_info_frame(dev_context, avif)) {
+			memcpy( (void *)&(hw_context->current_avi_info_frame), (void *)avif, sizeof(avi_info_frame_t));
+			hw_context->valid_avif = 1;
+			mode_change = true;
+		}
+		else
+		{
+			MHL_TX_DBG_INFO(hw_context, "It's NOT a valid AVIF!\n");
+			hw_context->valid_avif = 0;
+		}
+	}
+
+	// No need to check Audio IF
+
+	// Save the changes only, no need to proceed if EDID is not yet parsed
+	if ( false == dev_context->edid_parse_done )
+	{
+		return;
+	}
+
+	if (mode_change) {
+		start_video(hw_context,dev_context->edid_parser_context);
+	}*/
+}
+static void fill_vsif(struct drv_hw_context *hw_context, uint8_t *p_vsif, int video_3d)
+{
+//	uint8_t video_3d_structure = 0;			// per HDMI
+	uint8_t mhl_3d_fmt_type = 0;
+	uint8_t mhl_vid_fmt = 0;
+
+	MHL_TX_DBG_INFO(hw_context, "Fill VSIF, video_3d:%02X ...\n", video_3d);
+
+	if ( VIDEO_3D_NONE == video_3d )
+	{
+		MHL_TX_DBG_INFO(hw_context, "Input Video 3D Update: NO 3D\n");
+		mhl_vid_fmt = 0x00;
+		hw_context->valid_3d = 0;
+		hw_context->valid_3d_fs = 0;
+	}
+	else if ( VIDEO_3D_FS == video_3d )
+	{
+		MHL_TX_DBG_INFO(hw_context, "Input Video 3D Update: 3D - Frame Sequential\n");
+//		video_3d_structure = 0x00;		// per HDMI
+		mhl_vid_fmt = 0x01;
+		mhl_3d_fmt_type = 0x00;
+		hw_context->valid_3d = 1;
+		hw_context->valid_3d_fs = 1;
+	}
+	else if ( VIDEO_3D_TB == video_3d )
+	{
+		MHL_TX_DBG_INFO(hw_context, "Input Video 3D Update: 3D - Top Bottom\n");
+//		video_3d_structure = 0x06;		// per HDMI
+		mhl_vid_fmt = 0x01;
+		mhl_3d_fmt_type = 0x01;
+		hw_context->valid_3d = 1;
+		hw_context->valid_3d_fs = 0;
+	}
+	else if ( VIDEO_3D_SS == video_3d )
+	{
+		MHL_TX_DBG_INFO(hw_context, "Input Video 3D Update: 3D - Side by side\n");
+//		video_3d_structure = 0x08;		// per HDMI
+		mhl_vid_fmt = 0x01;
+		mhl_3d_fmt_type = 0x02;
+		hw_context->valid_3d = 1;
+		hw_context->valid_3d_fs = 0;
+	}
+
+	// Fill VSIF
+
+	p_vsif[0] = 0x81;	// VSIF header
+	p_vsif[1] = 0x01;	// Version
+	p_vsif[2] = 0x04;	// Length
+
+	p_vsif[3] = 0x00;	// Initial checksum
+
+	// Per MHL, begin
+	// Should use this for MHL
+	p_vsif[4] = 0x1D;	// 0x7CA61D in Little Endian
+	p_vsif[5] = 0xA6;
+	p_vsif[6] = 0x7C;
+	p_vsif[7] = mhl_3d_fmt_type << 2 | mhl_vid_fmt;
+	// Per MHL, end
+
+	p_vsif[3] = calculate_vsif_checksum(p_vsif);	// Checksum
+
+	// In case there is a need to use HDMI VSIF
+	// Per HDMI, begin
+	/*
+	   p_vsif[2] = 0x07;	// Length
+
+	// For compatibility with 'bad' MHL sinks, which accept HDMI IEEE OUI instead of MHL IEEE OUI
+	   p_vsif[4] = 0x03;	// 0x000C03 in Little Endian
+	   p_vsif[5] = 0x0C;
+	   p_vsif[6] = 0x00;
+
+	   p_vsif[7] = 0x40;	// 0x010-00000 -- 3D format indication present
+	   p_vsif[8] = video_3d_structure << 4;	// 3D structure & 3D_Meta_present=0
+	   p_vsif[9] = 0x00;
+	   p_vsif[10] = 0x00;
+	 */
+	// Per HDMI, end
+}
+
+//void si_mhl_tx_drv_video_3d_update(struct drv_hw_context *hw_context, int video, int video_3d)
+void si_mhl_tx_drv_video_3d(struct mhl_dev_context *dev_context, int video_3d)
+{
+	vendor_specific_info_frame_t vsif;
+
+    MHL_TX_DBG_INFO((struct drv_hw_context *) (&dev_context->drv_context), "Input Timing Update: video 3D configuration changed %d\n", video_3d);
+
+	memset( &vsif, 0, sizeof(vendor_specific_info_frame_t) );
+
+	fill_vsif( (struct drv_hw_context *) (&dev_context->drv_context), (uint8_t *)(&vsif), video_3d );	// Fill VISF
+
+	// Process VSIF only
+	process_info_frame_change((struct drv_hw_context *) (&dev_context->drv_context),&vsif,NULL);
+
+	//fill_video_lcd( hw_context, video, video_3d );
+
+	//set_pin(hw_context, VID_CTRL_ACK, 1);  // tell to allow further VID_CTRL_INT
+}
+
+#if 0
+struct timer_list restart_timer;
+struct drv_hw_context *temp_hw_context = NULL;
+void __restart_timer_isr(unsigned long n)
+{
+    unmute_video(temp_hw_context);
+    del_timer(&restart_timer);
+}
+#endif
+
+extern HDMI_CABLE_TYPE MHL_Connect_type;
+extern HDMI_STATE hdmi_drv_get_state(void);
+void si_mhl_tx_drv_video_3d_update(struct mhl_dev_context *dev_context, int video_3d)
+{
+	vendor_specific_info_frame_t vsif;	
+    struct drv_hw_context *hw_context = (struct drv_hw_context *)&dev_context->drv_context;
+    
+
+    MHL_TX_DBG_INFO((struct drv_hw_context *) (&dev_context->drv_context), "Input Timing Update to: video 3D configuration changed-%d, cable type: %d\n", video_3d, MHL_Connect_type);
+    if(MHL_Connect_type != MHL_3D_GLASSES)
+        stop_video(hw_context);
+    
+	memset( &vsif, 0, sizeof(vendor_specific_info_frame_t) );
+
+	fill_vsif( (struct drv_hw_context *) (&dev_context->drv_context), (uint8_t *)(&vsif), video_3d );	// Fill VISF
+
+	// Process VSIF only
+	process_info_frame_change((struct drv_hw_context *) (&dev_context->drv_context),&vsif,NULL);
+
+	/*
+		 * Send VSIF out
+		 */
+		///if ( 1 == hw_context->valid_vsif && 1 == hw_context->valid_3d )
+		{
+			MHL_TX_DBG_INFO((struct drv_hw_context *) (&dev_context->drv_context), "Send VSIF out...\n");
+			mhl_tx_write_reg((struct drv_hw_context *) (&dev_context->drv_context), REG_TPI_INFO_FSEL, BIT_TPI_INFO_EN | BIT_TPI_INFO_RPT | BIT_TPI_INFO_SEL_3D_VSIF);	// Send 3D VSIF repeatly
+			///DumpIncomingInfoFrame(&((struct drv_hw_context *) (&dev_context->drv_context)->current_vs_info_frame),sizeof((struct drv_hw_context *) (&dev_context->drv_context)->current_vs_info_frame));
+			///mhl_tx_write_reg_block((struct drv_hw_context *) (&dev_context->drv_context), REG_TPI_INFO_BYTE00, 8, (u8 *)(&((struct drv_hw_context *) (&dev_context->drv_context)->current_vs_info_frame)) );	// only 8 bytes are valid for MHL VSIF
+            DumpIncomingInfoFrame(&(hw_context->current_vs_info_frame),sizeof(hw_context->current_vs_info_frame));
+			mhl_tx_write_reg_block((struct drv_hw_context *) (&dev_context->drv_context), REG_TPI_INFO_BYTE00, 8, (u8 *)(&(hw_context->current_vs_info_frame)) );	// only 8 bytes are valid for MHL VSIF
+			mhl_tx_write_reg((struct drv_hw_context *) (&dev_context->drv_context), REG_TPI_INFO_BYTE30, 0x00);// Trigger the infoframe sending
+		}
+
+#if 0    
+    restart_timer.expires = jiffies + msecs_to_jiffies(500);
+    restart_timer.function = __restart_timer_isr;
+    init_timer(&restart_timer);
+    add_timer(&restart_timer);
+#else
+    if(MHL_Connect_type != MHL_3D_GLASSES)
+    {
+        msleep(120);
+        if(hdmi_drv_get_state()==HDMI_STATE_ACTIVE)
+            unmute_video(hw_context);
+    }  
+    
+    MHL_TX_DBG_INFO((struct drv_hw_context *) (&dev_context->drv_context), "Input Timing Update to: video 3D configuration changed done\n");
+#endif
+}
+#endif
+

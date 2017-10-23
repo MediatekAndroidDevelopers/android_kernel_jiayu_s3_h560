@@ -1,16 +1,5 @@
-/*
- * Copyright (C) 2015 MediaTek Inc.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
-
+#include "disp_drv_log.h"
+#include <linux/ion_drv.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
@@ -18,28 +7,18 @@
 
 #include <linux/wait.h>
 #include <linux/file.h>
-#include "ion_drv.h"
-#include "m4u.h"
+
+#include <mach/m4u.h>
 #include "mtk_sync.h"
+#include "debug.h"
+#include "ddp_ovl.h"
 #include "mtkfb_fence.h"
 #include "ddp_path.h"
 #include "disp_drv_platform.h"
+#include "display_recorder.h"
 #include "ddp_mmp.h"
 #include "primary_display.h"
 #include "mtk_disp_mgr.h"
-
-#if defined(COMMON_DISP_LOG)
-#include "disp_log.h"
-#include "disp_debug.h"
-#include "disp_recorder.h"
-#include "mtkfb_debug.h"
-#else
-#include "debug.h"
-#include "ddp_log.h"
-#include "disp_drv_log.h"
-#include "display_recorder.h"
-#endif
-
 /************************* log*********************/
 
 static bool mtkfb_fence_on;
@@ -83,30 +62,15 @@ static struct ion_client *ion_client;
 #define MTK_FB_NO_ION_FD        ((int)(~0U>>1))
 #define DISP_SESSION_TYPE(id) (((id)>>16)&0xff)
 
+/* TODO: where to put this api? */
+extern char *disp_session_mode_spy(unsigned int session_id);
+
 
 static LIST_HEAD(info_pool_head);
 static DEFINE_MUTEX(_disp_fence_mutex);
 static DEFINE_MUTEX(fence_buffer_mutex);
 
 disp_session_sync_info _disp_fence_context[MAX_SESSION_COUNT];
-
-#if 0 /* defined but not used */
-static const char *session_mode_spy(unsigned int mode)
-{
-	switch (mode) {
-	case DISP_SESSION_DIRECT_LINK_MODE:
-		return "DIRECT_LINK";
-	case DISP_SESSION_DIRECT_LINK_MIRROR_MODE:
-		return "DIRECT_LINK_MIRROR";
-	case DISP_SESSION_DECOUPLE_MODE:
-		return "DECOUPLE";
-	case DISP_SESSION_DECOUPLE_MIRROR_MODE:
-		return "DECOUPLE_MIRROR";
-	default:
-		return "UNKNOWN";
-	}
-}
-#endif
 
 static disp_session_sync_info *_get_session_sync_info(unsigned int session_id)
 {
@@ -496,13 +460,13 @@ unsigned int mtkfb_query_release_idx(unsigned int session_id, unsigned int layer
 
 			/* /idx = buf->idx; */
 			buf->buf_state = reg_updated;
-			DISPMSG("mva query1:idx=0x%x, mva=0x%lx, off=%d st %x\n", buf->idx,
+			DISPDBG("mva query1:idx=0x%x, mva=0x%lx, off=%d st %x\n", buf->idx,
 				buf->mva, buf->mva_offset, buf->buf_state);
 		} else if (((buf->mva + buf->mva_offset) != phy_addr)
 			   && (buf->buf_state == reg_updated)) {
 
 			buf->buf_state = read_done;
-			DISPMSG("mva query2:idx=0x%x, mva=0x%lx, off=%d st %x\n", buf->idx,
+			DISPDBG("mva query2:idx=0x%x, mva=0x%lx, off=%d st %x\n", buf->idx,
 				buf->mva, buf->mva_offset, buf->buf_state);
 		} else if ((phy_addr == 0) && (buf->buf_state > create)) {
 			buf->buf_state = read_done;
@@ -590,6 +554,7 @@ unsigned int mtkfb_query_idx_by_ticket(unsigned int session_id, unsigned int lay
 	return idx;
 }
 
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
 bool mtkfb_update_buf_info_new(unsigned int session_id, unsigned int mva_offset, disp_input_config *buf_info)
 {
 	struct mtkfb_fence_buf_info *buf;
@@ -629,6 +594,7 @@ unsigned int mtkfb_query_buf_info(unsigned int session_id, unsigned int layer_id
 		int query_type)
 {
 	struct mtkfb_fence_buf_info *buf = NULL;
+	struct mtkfb_fence_buf_info *pre_buf = NULL;
 	disp_session_sync_info *session_info;
 	disp_sync_info *layer_info;
 	int query_info = 0;
@@ -644,16 +610,14 @@ unsigned int mtkfb_query_buf_info(unsigned int session_id, unsigned int layer_id
 	list_for_each_entry(buf, &layer_info->buf_list, list) {
 		DISPMSG("mva updatenn layer%d, idx=0x%x, mva=0x%08lx-%x py %lx\n", layer_id,
 				buf->idx, buf->mva, buf->layer_type, phy_addr);
-		if ((buf->mva + buf->mva_offset) == phy_addr) {
+		if ((buf->mva + buf->mva_offset) == phy_addr)
 			query_info = buf->layer_type;
-			mutex_unlock(&layer_info->sync_lock);
-			return query_info;
-		}
 	}
 	mutex_unlock(&layer_info->sync_lock);
 
 	return query_info;
 }
+#endif
 
 #endif				/* #if defined (MTK_FB_ION_SUPPORT) */
 
@@ -758,7 +722,9 @@ struct mtkfb_fence_buf_info *mtkfb_init_buf_info(struct mtkfb_fence_buf_info *bu
 	buf->idx = 0;
 	buf->mva = 0;
 	buf->cache_sync = 0;
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
 	buf->layer_type = 0;
+#endif
 	return buf;
 }
 
@@ -863,10 +829,10 @@ void mtkfb_release_fence(unsigned int session_id, unsigned int layer_id, int fen
 				/* DISPMSG("buf->idx=%d,ts_create=%lld,ts_period_keep=%lld\n",
 					   buf->idx, buf->ts_create, buf->ts_period_keep);
 				 */
-				DISPPR_FENCE("R+/%s%d/L%d/id%d/last%d/new%d/free/idx%d\n",
+				/*DISPPR_FENCE("R+/%s%d/L%d/id%d/last%d/new%d/free/idx%d\n",
 					     disp_session_mode_spy(session_id),
 					     DISP_SESSION_DEV(session_id), layer_id, fence,
-					     current_timeline_idx, layer_info->fence_idx, buf->idx);
+					     current_timeline_idx, layer_info->fence_idx, buf->idx);*/
 			}
 		}
 
@@ -893,8 +859,8 @@ void mtkfb_release_layer_fence(unsigned int session_id, unsigned int layer_id)
 	fence = layer_info->fence_idx;
 	mutex_unlock(&layer_info->sync_lock);
 
-	DISPPR_FENCE("RL+/%s%d/L%d/id%d\n", disp_session_mode_spy(session_id),
-		     DISP_SESSION_DEV(session_id), layer_id, fence);
+	/*DISPPR_FENCE("RL+/%s%d/L%d/id%d\n", disp_session_mode_spy(session_id),
+		     DISP_SESSION_DEV(session_id), layer_id, fence);*/
 	/* DISPMSG("layer%d release all fence %d\n", layer_id, fence); */
 	mtkfb_release_fence(session_id, layer_id, fence);
 }
@@ -903,8 +869,8 @@ void mtkfb_release_session_fence(unsigned int session_id)
 {
 	disp_session_sync_info *session_sync_info = NULL;
 	int i;
-
 	session_sync_info = _get_session_sync_info(session_id);
+
 	if (session_sync_info == NULL) {
 		DISPERR("layer_info is null\n");
 		return;
@@ -1018,50 +984,6 @@ int disp_sync_convert_input_to_fence_layer_info(disp_input_config *src, FENCE_LA
 	}
 }
 
-static int disp_sync_convert_input_to_fence_layer_info_v2(FENCE_LAYER_INFO *dst, unsigned int timeline_idx,
-			unsigned int fence_id, int layer_en, unsigned long mva)
-{
-	if (!dst) {
-		pr_err("%s error!\n", __func__);
-		BUG();
-	}
-
-	dst->layer = timeline_idx;
-	dst->addr = mva;
-	if (fence_id == 0) {
-		dst->layer_en = 0;
-	} else {
-		dst->layer_en = layer_en;
-		dst->buff_idx = fence_id;
-	}
-
-	return 0;
-}
-
-int disp_sync_put_cached_layer_info_v2(unsigned int session_id, unsigned int timeline_idx,
-			unsigned int fence_id, int layer_en, unsigned long mva)
-{
-	/* int ret = -1; */
-	disp_sync_info *layer_info = NULL;
-
-	layer_info = _get_sync_info(session_id, timeline_idx);
-
-	if (layer_info == NULL) {
-		DISPERR("layer_info is null\n");
-		return -1;
-	}
-
-	mutex_lock(&(layer_info->sync_lock));
-
-	disp_sync_convert_input_to_fence_layer_info_v2(&(layer_info->cached_config),
-				timeline_idx, fence_id, layer_en, mva);
-
-	mutex_unlock(&(layer_info->sync_lock));
-
-	return 0;
-}
-
-
 static int prepare_ion_buf(disp_buffer_info *buf, struct mtkfb_fence_buf_info *buf_info)
 {
 	unsigned int mva = 0x0;
@@ -1152,9 +1074,9 @@ struct mtkfb_fence_buf_info *disp_sync_prepare_buf(disp_buffer_info *buf)
 	list_add_tail(&buf_info->list, &layer_info->buf_list);
 	mutex_unlock(&layer_info->sync_lock);
 
-	DISPPR_FENCE("P+/%s%d/L%d/id%d/fd%d/mva0x%08lx/size0x%08x\n",
+	/*DISPPR_FENCE("P+/%s%d/L%d/id%d/fd%d/mva0x%08lx/size0x%08x\n",
 		     disp_session_mode_spy(session_id), DISP_SESSION_DEV(session_id), timeline_id,
-		     buf_info->idx, buf_info->fence, buf_info->mva, buf_info->size);
+		     buf_info->idx, buf_info->fence, buf_info->mva, buf_info->size);*/
 
 	dprec_done(&session_info->event_prepare, buf_info->idx, buf_info->fence);
 
@@ -1199,7 +1121,7 @@ int disp_sync_find_fence_idx_by_addr(unsigned int session_id, unsigned int timel
 			 */
 			if (buf->idx <= fence_idx) {
 				/*
-				 * Because we use cached idx as boundary,
+				 * Because we use cached idx as boundry,
 				 * so we will continue traverse even the idx has been found.
 				 */
 				if ((buf->mva + buf->mva_offset) == phy_addr) {
@@ -1275,7 +1197,6 @@ unsigned int disp_sync_query_buf_info(unsigned int session_id, unsigned int time
 	}
 
 	/* DISPMSG("mva query:session_id=0x%08x, layer_id=%d, mva=0x%08x\n", session_id, layer_id, mva); */
-
 	return 0;
 }
 

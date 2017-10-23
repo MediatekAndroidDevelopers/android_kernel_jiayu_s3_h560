@@ -1004,10 +1004,14 @@ void si_mhl_tx_msc_command_done(struct mhl_dev_context *dev_context, uint8_t dat
 		 */           
         if(0x0F == req->reg)
         {
-            if(data1 == 0xB9)
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT        
+            if((data1 == 0xB9) || (data1 == 0xBA))
+#else
+            if(data1 == 0xB9) 
+#endif
             {
             	//SMB
-            	mhl_event_notify(dev_context, MHL_TX_EVENT_DEV_CAP_UPDATE, NULL, NULL);
+            	mhl_event_notify(dev_context, MHL_TX_EVENT_DEV_CAP_UPDATE, data1, NULL);
             }
 			
         }
@@ -1244,15 +1248,19 @@ void si_mhl_tx_process_write_burst_data(struct mhl_dev_context *dev_context)
 
 		switch(burst_id) {
 		case burst_id_3D_VIC:
+#ifndef CONFIG_MTK_HDMI_3D_SUPPORT
 			si_mhl_tx_process_3d_vic_burst(
 					dev_context->edid_parser_context,
 					&dev_context->incoming_scratch_pad.videoFormatData);
+#endif					
 			break;
 
 		case burst_id_3D_DTD:
+#ifndef CONFIG_MTK_HDMI_3D_SUPPORT
 			si_mhl_tx_process_3d_dtd_burst(
 					dev_context->edid_parser_context,
 					&dev_context->incoming_scratch_pad.videoFormatData);
+#endif					
 			break;
 
 		case LOCAL_ADOPTER_ID:
@@ -1752,16 +1760,16 @@ void DumpIncomingInfoFrameImpl(char *pszId,char *pszFile,int iLine,info_frame_t 
 {
 	uint8_t j;
 	uint8_t *pData = (uint8_t *)pInfoFrame;
-	printk("mhl_tx infoframe: %s: length:0x%02x -- ",pszId,length);
+	pr_debug("mhl_tx infoframe: %s: length:0x%02x -- ",pszId,length);
 	for (j = 0; j < length; j++)
 	{
-	    printk("%02X ", pData[j]);
+	    pr_debug("%02X ", pData[j]);
 		if (AT_ROW_END(j,32))
 		{
-	        printk("\n");
+	        pr_debug("\n");
 		}
 	}
-	printk("\n");
+	pr_debug("\n");
 }
 #endif //)
 

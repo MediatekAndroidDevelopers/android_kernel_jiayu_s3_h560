@@ -76,7 +76,7 @@ typedef enum{
 #define DEBUG_LOG
 
 #ifdef DEBUG_LOG
-#define smb_print(fmt, args...) printk(KERN_ERR "[SMB] " fmt, ##args)
+#define smb_print(fmt, args...) pr_debug(fmt, ##args)
 #else
 #define smb_print(fmt, args...) 
 #endif

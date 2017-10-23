@@ -76,6 +76,10 @@ typedef enum {
 	HDMI_VOUT_FORMAT_RGB888,
 	HDMI_VOUT_FORMAT_YUV422,
 	HDMI_VOUT_FORMAT_YUV444,
+
+	HDMI_VOUT_FORMAT_2D     = 1<<16,
+	HDMI_VOUT_FORMAT_3D_SBS = 1<<17,
+	HDMI_VOUT_FORMAT_3D_TAB = 1<<18,
 } HDMI_VIDEO_OUTPUT_FORMAT;
 
 //Must align to MHL Tx chip driver define
@@ -111,8 +115,16 @@ typedef enum {
 	HDMI_CABLE,
 	MHL_CABLE,
 	MHL_SMB_CABLE,
-	MHL_2_CABLE		/* /MHL 2.0 */
+	MHL_2_CABLE,		/* /MHL 2.0 */
+	MHL_3D_GLASSES
 } HDMI_CABLE_TYPE;
+
+typedef enum {
+	HDMI_2D,
+	HDMI_3D_SBS,
+	HDMI_3D_TAB,
+	HDMI_3D_FP		
+} HDMI_3D_FORMAT_ENUM;
 
 typedef struct {
 	unsigned int width;
@@ -150,7 +162,11 @@ typedef struct {
 	unsigned int scaling_factor;	/* determine the scaling of output screen size, valid value 0~10 */
 	/* 0 means no scaling, 5 means scaling to 95%, 10 means 90% */
 	HDMI_CABLE_TYPE cabletype;
-	bool HDCPSupported;
+	unsigned int HDCPSupported;
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT	
+	int is_3d_support;
+#endif	
+	unsigned int input_clock;
 } HDMI_PARAMS;
 
 typedef enum {
@@ -256,7 +272,11 @@ typedef struct {
 	void (*suspend) (void);
 	void (*resume) (void);
 	int  (*audio_config)(HDMI_AUDIO_FORMAT aformat, int bitWidth);
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT	
+	int  (*video_config)(HDMI_VIDEO_RESOLUTION vformat, HDMI_VIDEO_INPUT_FORMAT vin, int vou);
+#else
 	int  (*video_config)(HDMI_VIDEO_RESOLUTION vformat, HDMI_VIDEO_INPUT_FORMAT vin, HDMI_VIDEO_OUTPUT_FORMAT vou);
+#endif
 	int (*video_enable) (bool enable);
 	int (*audio_enable) (bool enable);
 	int (*irq_enable) (bool enable);

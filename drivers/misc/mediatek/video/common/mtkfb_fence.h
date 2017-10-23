@@ -1,16 +1,3 @@
-/*
- * Copyright (C) 2015 MediaTek Inc.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
-
 #ifndef __MTKFB_FENCE_H__
 #define __MTKFB_FENCE_H__
 
@@ -18,13 +5,7 @@
 #include <linux/list.h>
 #include "disp_session.h"
 #include "disp_drv_platform.h"
-
-#if defined(COMMON_DISP_LOG)
-#include "disp_recorder.h"
-#include "mtkfb_debug.h"
-#else
 #include "display_recorder.h"
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,7 +56,9 @@ struct mtkfb_fence_buf_info {
 	unsigned long long ts_create;
 	unsigned long long ts_period_keep;
 	unsigned int seq;
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
 	unsigned int layer_type;
+#endif
 };
 
 struct mtkfb_fence_sync_info {
@@ -157,10 +140,12 @@ unsigned int mtkfb_update_buf_ticket(unsigned int session_id, unsigned int layer
 				     unsigned int idx, unsigned int ticket);
 unsigned int mtkfb_query_idx_by_ticket(unsigned int session_id, unsigned int layer_id,
 				       unsigned int ticket);
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
 bool mtkfb_update_buf_info_new(unsigned int session_id, unsigned int mva_offset,
 		disp_input_config *buf_info);
 unsigned int mtkfb_query_buf_info(unsigned int session_id, unsigned int layer_id,
 		unsigned long phy_addr, int query_type);
+#endif
 unsigned int mtkfb_query_release_idx(unsigned int session_id, unsigned int layer_id,
 				     unsigned long phy_addr);
 unsigned int mtkfb_query_frm_seq_by_addr(unsigned int session_id, unsigned int layer_id,
@@ -178,7 +163,8 @@ void mtkfb_update_fence_trigger_ticket(unsigned int session_id, unsigned int lay
 				       int fence, unsigned int ticket);
 void mtkfb_release_present_fence(unsigned int session_id, int fence);
 void mtkfb_release_layer_fence(unsigned int session_id, unsigned int layer_id);
-/* int mtkfb_get_present_fence(disp_present_fence_info *buf, unsigned int *fence_fd, unsigned int *idx); */
+/* int mtkfb_get_present_fence(disp_present_fence_info *buf,
+unsigned int *fence_fd, unsigned int *idx); */
 int mtkfb_fence_clean_thread(void *data);
 int mtkfb_fence_timeline_index(void);
 
@@ -189,8 +175,6 @@ int disp_sync_get_cached_layer_info(unsigned int session_id, unsigned int timeli
 				    unsigned int *fence_idx);
 int disp_sync_put_cached_layer_info(unsigned int session_id, unsigned int timeline_idx,
 				    disp_input_config *src, unsigned long mva);
-int disp_sync_put_cached_layer_info_v2(unsigned int session_id, unsigned int timeline_idx,
-			unsigned int fence_id, int layer_en, unsigned long mva);
 
 int disp_sync_convert_input_to_fence_layer_info(disp_input_config *src,
 						FENCE_LAYER_INFO *dst,

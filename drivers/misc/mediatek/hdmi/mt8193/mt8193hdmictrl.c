@@ -253,13 +253,13 @@ u32 mt8193_hdmidrv_read(u16 u2Reg)
 {
 	u32 u4Data;
 	mt8193_i2c_read(HDMIDRV_BASE + u2Reg, &u4Data);
-	MT8193_DRV_LOG("[R]addr = 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
+	//MT8193_DRV_LOG("[R]addr = 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
 	return u4Data;
 }
 
 void mt8193_hdmidrv_write(u16 u2Reg, u32 u4Data)
 {
-	MT8193_DRV_LOG("[W]addr = 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
+	//MT8193_DRV_LOG("[W]addr = 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
 	mt8193_i2c_write(HDMIDRV_BASE + u2Reg, u4Data);
 }
 
@@ -268,13 +268,13 @@ u32 mt8193_hdmisys_read(u16 u2Reg)
 {
 	u32 u4Data;
 	mt8193_i2c_read(HDMISYS_BASE + u2Reg, &u4Data);
-	MT8193_PLL_LOG("[R]addr = 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
+	//MT8193_PLL_LOG("[R]addr = 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
 	return u4Data;
 }
 
 void mt8193_hdmisys_write(u16 u2Reg, u32 u4Data)
 {
-	MT8193_PLL_LOG("[W]addr= 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
+	//MT8193_PLL_LOG("[W]addr= 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
 	mt8193_i2c_write(HDMISYS_BASE + u2Reg, u4Data);
 }
 
@@ -283,13 +283,13 @@ u32 mt8193_hdmidgi_read(u16 u2Reg)
 {
 	u32 u4Data;
 	mt8193_i2c_read(HDMIDGI_BASE + u2Reg, &u4Data);
-	MT8193_DGI_LOG("[R]addr= 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
+	//MT8193_DGI_LOG("[R]addr= 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
 	return u4Data;
 }
 
 void mt8193_hdmidgi_write(u16 u2Reg, u32 u4Data)
 {
-	MT8193_DGI_LOG("[W]addr= 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
+	//MT8193_DGI_LOG("[W]addr= 0x%04x, data = 0x%08x\n", u2Reg, u4Data);
 	mt8193_i2c_write(HDMIDGI_BASE + u2Reg, u4Data);
 }
 
@@ -360,7 +360,6 @@ u8 vIsDviMode(void)
 u8 bCheckStatus(u8 bMode)
 {
 	u8 bStatus = 0;
-	MT8193_PLUG_FUNC();
 	bStatus = bReadByteHdmiGRL(GRL_STATUS);
 
 	if ((bStatus & bMode) == bMode) {
@@ -373,7 +372,6 @@ u8 bCheckStatus(u8 bMode)
 u8 bCheckPordHotPlug(u8 bMode)
 {
 	u8 bStatus = FALSE;
-	MT8193_PLUG_FUNC();
 	if (bMode == (PORD_MODE | HOTPLUG_MODE)) {
 		bStatus = bCheckStatus(STATUS_PORD | STATUS_HTPLG);
 	} else if (bMode == HOTPLUG_MODE) {
@@ -385,7 +383,10 @@ u8 bCheckPordHotPlug(u8 bMode)
 	return bStatus;
 
 }
-
+u8 hdmi_port_status(void)
+{
+        return bReadByteHdmiGRL(GRL_STATUS) & (PORD_MODE | HOTPLUG_MODE);
+}
 void MuteHDMIAudio(void)
 {
 	u8 bData;
@@ -398,8 +399,6 @@ void MuteHDMIAudio(void)
 void vBlackHDMIOnly(void)
 {
 	MT8193_DRV_FUNC();
-	if (get_boot_mode() != FACTORY_BOOT)
-		*(unsigned int *)(0xf400f0b4) = 0x51;
 }
 
 void vHDMIAVMute(void)
@@ -419,6 +418,7 @@ void vTxSignalOnOff(u8 bOn)
 	bData1 = bReadByteHdmiGRL(GRL_INT) & INT_MDI;
 
 	if (bOn) {
+                        HDMI_DEF_LOG("[hdmi]tmds on\n");
 		vWriteHdmiSYSMsk(HDMI_SYS_AMPCTRL, 0, RG_SET_DTXST);
 		/* the 5ms delay time after pll setting , resolve CTS 7-6 can't find trigger and result fail */
 		mdelay(5);
@@ -433,6 +433,7 @@ void vTxSignalOnOff(u8 bOn)
 		udelay(20);
 		vWriteHdmiSYSMsk(HDMI_SYS_PLLCTRL2, POW_HDMITX | POW_PLL_L, POW_HDMITX | POW_PLL_L);
 	} else {
+	        HDMI_DEF_LOG("[hdmi]tmds off\n");
 		vWriteHdmiSYSMsk(HDMI_SYS_AMPCTRL, 0, RG_SET_DTXST);
 		vWriteHdmiSYSMsk(HDMI_SYS_PLLCTRL1, 0, RG_ENCKST);
 		vWriteHdmiSYSMsk(HDMI_SYS_PLLCTRL6, ABIST_MODE_SET, ABIST_MODE_SET_MSK);
@@ -440,6 +441,7 @@ void vTxSignalOnOff(u8 bOn)
 				 ABIST_MODE_EN | ABIST_LV_EN);
 		vWriteHdmiSYSMsk(HDMI_SYS_PLLCTRL7, 0, TX_DRV_ENABLE_MSK);
 	}
+        
 	if ((bData1 != INT_MDI))
 		bClearGRLInt(INT_MDI);
 }
@@ -472,16 +474,13 @@ void vWriteHdmiIntMask(u8 bMask)
 
 void vUnBlackHDMIOnly(void)
 {
-	MT8193_DRV_FUNC();
-	if (get_boot_mode() != FACTORY_BOOT)
-		*(unsigned int *)(0xf400f0b4) = 0x0;
+	HDMI_DEF_LOG("[hdmi]vid unmute\n");
 }
 
 void UnMuteHDMIAudio(void)
 {
 	BYTE bData;
-	MT8193_AUDIO_FUNC();
-
+              HDMI_DEF_LOG("[hdmi]aud unmute\n");
 	bData = bReadByteHdmiGRL(GRL_AUDIO_CFG);
 	bData &= ~AUDIO_ZERO;
 	vWriteByteHdmiGRL(GRL_AUDIO_CFG, bData);
@@ -700,7 +699,7 @@ void vHDMIVideoOutput(u8 ui1Res, u8 ui1ColorSpace)
 		vWriteHdmiDGIMsk(dgi1_yuv2rgb_ctr, rg_yuv709_rgb | rg_yuv2rgb_en,
 				 rg_yuv709_rgb | rg_yuv2rgb_en);
 	} else {
-		pr_debug("color space type error\n");
+		hdmi_print("color space type error\n");
 	}
 }
 
@@ -750,10 +749,12 @@ void vEnableHdmiMode(u8 bOn)
 		bData = bReadByteHdmiGRL(GRL_CFG1);
 		bData &= ~CFG1_DVI;	/* enable HDMI mode */
 		vWriteByteHdmiGRL(GRL_CFG1, bData);
+                        HDMI_DEF_LOG("[hdmi]to hdmi mode\n");
 	} else {
 		bData = bReadByteHdmiGRL(GRL_CFG1);
 		bData |= CFG1_DVI;	/* disable HDMI mode */
 		vWriteByteHdmiGRL(GRL_CFG1, bData);
+                        HDMI_DEF_LOG("[hdmi]to dvi mode\n");
 	}
 
 }
@@ -1419,6 +1420,9 @@ void vChgHDMIAudioOutput(u8 ui1hdmifs, u8 ui1resindex, u8 bdeepmode)
 	vHwNCTSOnOff(TRUE);
 
 	vAudioPacketOff(FALSE);
+
+        
+        HDMI_DEF_LOG("[hdmi]set aud,e_hdmi_fs:%d,u1HdmiI2sMclk:%d\,ui1_aud_out_ch_number=%d\n",_stAvdAVInfo.e_hdmi_fs,_stAvdAVInfo.u1HdmiI2sMclk,_stAvdAVInfo.ui1_aud_out_ch_number);
 }
 
 void vDisableGamut(void)
@@ -1586,6 +1590,7 @@ void vChgHDMIVideoResolution(u8 ui1resindex, u8 ui1colorspace, u8 ui1hdmifs, u8 
 	vSendAVIInfoFrame(ui1resindex, ui1colorspace);
 	vHalSendSPDInfoFrame(&_bSpdInf[0]);
 	vSend_AVUNMUTE();
+              HDMI_DEF_LOG("[hdmi]vid:%x,cs:%x,fs:%x,dp:%x\n",ui1resindex,ui1colorspace,ui1hdmifs,bdeepmode);
 
 	vWriteHdmiDGIMsk(fifo_ctrl, 0, fifo_reset_sel | fifo_reset_on | sw_rst);
 	vWriteHdmiDGIMsk(dgi1_yuv2rgb_ctr, fifo_write_en, fifo_write_en);
@@ -1606,23 +1611,23 @@ void vShowHpdRsenStatus(void)
 {
 
 	if (bCheckPordHotPlug(HOTPLUG_MODE) == TRUE)
-		pr_debug("[HDMI]HPD ON\n");
+		hdmi_print("[HDMI]HPD ON\n");
 	else
-		pr_debug("[HDMI]HPD OFF\n");
+		hdmi_print("[HDMI]HPD OFF\n");
 
 	if (bCheckPordHotPlug(PORD_MODE) == TRUE)
-		pr_debug("[HDMI]RSEN ON\n");
+		hdmi_print("[HDMI]RSEN ON\n");
 	else
-		pr_debug("[HDMI]RSEN OFF\n");
+		hdmi_print("[HDMI]RSEN OFF\n");
 
 	if (i4SharedInfo(SI_HDMI_RECEIVER_STATUS) == HDMI_PLUG_IN_ONLY)
-		pr_debug("[HDMI]SI_HDMI_RECEIVER_STATUS = HDMI_PLUG_IN_ONLY\n");
+		hdmi_print("[HDMI]SI_HDMI_RECEIVER_STATUS = HDMI_PLUG_IN_ONLY\n");
 	else if (i4SharedInfo(SI_HDMI_RECEIVER_STATUS) == HDMI_PLUG_IN_AND_SINK_POWER_ON)
-		pr_debug("[HDMI]SI_HDMI_RECEIVER_STATUS = HDMI_PLUG_IN_AND_SINK_POWER_ON\n");
+		hdmi_print("[HDMI]SI_HDMI_RECEIVER_STATUS = HDMI_PLUG_IN_AND_SINK_POWER_ON\n");
 	else if (i4SharedInfo(SI_HDMI_RECEIVER_STATUS) == HDMI_PLUG_OUT)
-		pr_debug("[HDMI]SI_HDMI_RECEIVER_STATUS = HDMI_PLUG_OUT\n");
+		hdmi_print("[HDMI]SI_HDMI_RECEIVER_STATUS = HDMI_PLUG_OUT\n");
 	else
-		pr_debug("[HDMI]SI_HDMI_RECEIVER_STATUS error\n");
+		hdmi_print("[HDMI]SI_HDMI_RECEIVER_STATUS error\n");
 
 
 
@@ -1630,16 +1635,16 @@ void vShowHpdRsenStatus(void)
 
 void vShowOutputVideoResolution(void)
 {
-	pr_debug("[HDMI]HDMI output resolution = %s\n", szHdmiResStr[_stAvdAVInfo.e_resolution]);	/*  */
+	hdmi_print("[HDMI]HDMI output resolution = %s\n", szHdmiResStr[_stAvdAVInfo.e_resolution]);	/*  */
 
 }
 
 void vShowDviOrHdmiMode(void)
 {
 	if (vIsDviMode())
-		pr_debug("[HDMI]DVI Mode\n");
+		hdmi_print("[HDMI]DVI Mode\n");
 	else
-		pr_debug("[HDMI]HDMI Mode\n");
+		hdmi_print("[HDMI]HDMI Mode\n");
 
 }
 
@@ -1647,166 +1652,166 @@ void vShowDeepColor(void)
 {
 
 	if (_stAvdAVInfo.e_deep_color_bit == HDMI_NO_DEEP_COLOR)
-		pr_debug("[HDMI]HDMI output deepcolor = HDMI_NO_DEEP_COLOR\n");
+		hdmi_print("[HDMI]HDMI output deepcolor = HDMI_NO_DEEP_COLOR\n");
 	else if (_stAvdAVInfo.e_deep_color_bit == HDMI_DEEP_COLOR_10_BIT)
-		pr_debug("[HDMI]HDMI output deepcolor = HDMI_DEEP_COLOR_10_BIT\n");
+		hdmi_print("[HDMI]HDMI output deepcolor = HDMI_DEEP_COLOR_10_BIT\n");
 	else if (_stAvdAVInfo.e_deep_color_bit == HDMI_DEEP_COLOR_12_BIT)
-		pr_debug("[HDMI]HDMI output deepcolor = HDMI_DEEP_COLOR_12_BIT\n");
+		hdmi_print("[HDMI]HDMI output deepcolor = HDMI_DEEP_COLOR_12_BIT\n");
 	else if (_stAvdAVInfo.e_deep_color_bit == HDMI_DEEP_COLOR_16_BIT)
-		pr_debug("[HDMI]HDMI output deepcolor = HDMI_DEEP_COLOR_16_BIT\n");
+		hdmi_print("[HDMI]HDMI output deepcolor = HDMI_DEEP_COLOR_16_BIT\n");
 	else
-		pr_debug("[HDMI]HDMI output deepcolor error\n");
+		hdmi_print("[HDMI]HDMI output deepcolor error\n");
 
 }
 
 void vShowColorSpace(void)
 {
 	if (_stAvdAVInfo.e_video_color_space == HDMI_RGB)
-		pr_debug("[HDMI]HDMI output colorspace = HDMI_RGB\n");
+		hdmi_print("[HDMI]HDMI output colorspace = HDMI_RGB\n");
 	else if (_stAvdAVInfo.e_video_color_space == HDMI_RGB_FULL)
-		pr_debug("[HDMI]HDMI output colorspace = HDMI_RGB_FULL\n");
+		hdmi_print("[HDMI]HDMI output colorspace = HDMI_RGB_FULL\n");
 	else if (_stAvdAVInfo.e_video_color_space == HDMI_YCBCR_444)
-		pr_debug("[HDMI]HDMI output colorspace = HDMI_YCBCR_444\n");
+		hdmi_print("[HDMI]HDMI output colorspace = HDMI_YCBCR_444\n");
 	else if (_stAvdAVInfo.e_video_color_space == HDMI_YCBCR_422)
-		pr_debug("[HDMI]HDMI output colorspace = HDMI_YCBCR_422\n");
+		hdmi_print("[HDMI]HDMI output colorspace = HDMI_YCBCR_422\n");
 	else if (_stAvdAVInfo.e_video_color_space == HDMI_XV_YCC)
-		pr_debug("[HDMI]HDMI output colorspace = HDMI_XV_YCC\n");
+		hdmi_print("[HDMI]HDMI output colorspace = HDMI_XV_YCC\n");
 	else
-		pr_debug("[HDMI]HDMI output colorspace error\n");
+		hdmi_print("[HDMI]HDMI output colorspace error\n");
 
 }
 
 void vShowInforFrame(void)
 {
-	pr_debug
+	hdmi_print
 	    ("====================Audio inforFrame Start ====================================\n");
-	pr_debug("Data Byte (1~5) = 0x%x  0x%x  0x%x  0x%x  0x%x\n", _bAudInfoFm[0], _bAudInfoFm[1],
+	hdmi_print("Data Byte (1~5) = 0x%x  0x%x  0x%x  0x%x  0x%x\n", _bAudInfoFm[0], _bAudInfoFm[1],
 		 _bAudInfoFm[2], _bAudInfoFm[3], _bAudInfoFm[4]);
-	pr_debug("CC2~ CC0: 0x%x, %s\n", _bAudInfoFm[0] & 0x07,
+	hdmi_print("CC2~ CC0: 0x%x, %s\n", _bAudInfoFm[0] & 0x07,
 		 cAudChCountStr[_bAudInfoFm[0] & 0x07]);
-	pr_debug("CT3~ CT0: 0x%x, %s\n", (_bAudInfoFm[0] >> 4) & 0x0f,
+	hdmi_print("CT3~ CT0: 0x%x, %s\n", (_bAudInfoFm[0] >> 4) & 0x0f,
 		 cAudCodingTypeStr[(_bAudInfoFm[0] >> 4) & 0x0f]);
-	pr_debug("SS1, SS0: 0x%x, %s\n", _bAudInfoFm[1] & 0x03,
+	hdmi_print("SS1, SS0: 0x%x, %s\n", _bAudInfoFm[1] & 0x03,
 		 cAudSampleSizeStr[_bAudInfoFm[1] & 0x03]);
-	pr_debug("SF2~ SF0: 0x%x, %s\n", (_bAudInfoFm[1] >> 2) & 0x07,
+	hdmi_print("SF2~ SF0: 0x%x, %s\n", (_bAudInfoFm[1] >> 2) & 0x07,
 		 cAudFsStr[(_bAudInfoFm[1] >> 2) & 0x07]);
-	pr_debug("CA7~ CA0: 0x%x, %s\n", _bAudInfoFm[3] & 0xff,
+	hdmi_print("CA7~ CA0: 0x%x, %s\n", _bAudInfoFm[3] & 0xff,
 		 cAudChMapStr[_bAudInfoFm[3] & 0xff]);
-	pr_debug("LSV3~LSV0: %d db\n", (_bAudInfoFm[4] >> 3) & 0x0f);
-	pr_debug("DM_INH: 0x%x ,%s\n", (_bAudInfoFm[4] >> 7) & 0x01,
+	hdmi_print("LSV3~LSV0: %d db\n", (_bAudInfoFm[4] >> 3) & 0x0f);
+	hdmi_print("DM_INH: 0x%x ,%s\n", (_bAudInfoFm[4] >> 7) & 0x01,
 		 cAudDMINHStr[(_bAudInfoFm[4] >> 7) & 0x01]);
-	pr_debug
+	hdmi_print
 	    ("====================Audio inforFrame End ======================================\n");
 
-	pr_debug("====================AVI inforFrame Start ====================================\n");
-	pr_debug("Data Byte (1~5) = 0x%x  0x%x  0x%x  0x%x  0x%x\n", _bAviInfoFm[0], _bAviInfoFm[1],
+	hdmi_print("====================AVI inforFrame Start ====================================\n");
+	hdmi_print("Data Byte (1~5) = 0x%x  0x%x  0x%x  0x%x  0x%x\n", _bAviInfoFm[0], _bAviInfoFm[1],
 		 _bAviInfoFm[2], _bAviInfoFm[3], _bAviInfoFm[4]);
-	pr_debug("S1,S0: 0x%x, %s\n", _bAviInfoFm[0] & 0x03, cAviScanStr[_bAviInfoFm[0] & 0x03]);
-	pr_debug("B1,S0: 0x%x, %s\n", (_bAviInfoFm[0] >> 2) & 0x03,
+	hdmi_print("S1,S0: 0x%x, %s\n", _bAviInfoFm[0] & 0x03, cAviScanStr[_bAviInfoFm[0] & 0x03]);
+	hdmi_print("B1,S0: 0x%x, %s\n", (_bAviInfoFm[0] >> 2) & 0x03,
 		 cAviBarStr[(_bAviInfoFm[0] >> 2) & 0x03]);
-	pr_debug("A0: 0x%x, %s\n", (_bAviInfoFm[0] >> 4) & 0x01,
+	hdmi_print("A0: 0x%x, %s\n", (_bAviInfoFm[0] >> 4) & 0x01,
 		 cAviActivePresentStr[(_bAviInfoFm[0] >> 4) & 0x01]);
-	pr_debug("Y1,Y0: 0x%x, %s\n", (_bAviInfoFm[0] >> 5) & 0x03,
+	hdmi_print("Y1,Y0: 0x%x, %s\n", (_bAviInfoFm[0] >> 5) & 0x03,
 		 cAviRgbYcbcrStr[(_bAviInfoFm[0] >> 5) & 0x03]);
-	pr_debug("R3~R0: 0x%x, %s\n", (_bAviInfoFm[1]) & 0x0f,
+	hdmi_print("R3~R0: 0x%x, %s\n", (_bAviInfoFm[1]) & 0x0f,
 		 cAviActiveStr[(_bAviInfoFm[1]) & 0x0f]);
-	pr_debug("M1,M0: 0x%x, %s\n", (_bAviInfoFm[1] >> 4) & 0x03,
+	hdmi_print("M1,M0: 0x%x, %s\n", (_bAviInfoFm[1] >> 4) & 0x03,
 		 cAviAspectStr[(_bAviInfoFm[1] >> 4) & 0x03]);
-	pr_debug("C1,C0: 0x%x, %s\n", (_bAviInfoFm[1] >> 6) & 0x03,
+	hdmi_print("C1,C0: 0x%x, %s\n", (_bAviInfoFm[1] >> 6) & 0x03,
 		 cAviColorimetryStr[(_bAviInfoFm[1] >> 6) & 0x03]);
-	pr_debug("SC1,SC0: 0x%x, %s\n", (_bAviInfoFm[2]) & 0x03,
+	hdmi_print("SC1,SC0: 0x%x, %s\n", (_bAviInfoFm[2]) & 0x03,
 		 cAviScaleStr[(_bAviInfoFm[2]) & 0x03]);
-	pr_debug("Q1,Q0: 0x%x, %s\n", (_bAviInfoFm[2] >> 2) & 0x03,
+	hdmi_print("Q1,Q0: 0x%x, %s\n", (_bAviInfoFm[2] >> 2) & 0x03,
 		 cAviRGBRangeStr[(_bAviInfoFm[2] >> 2) & 0x03]);
 	if (((_bAviInfoFm[2] >> 4) & 0x07) <= 1)
-		pr_debug("EC2~EC0: 0x%x, %s\n", (_bAviInfoFm[2] >> 4) & 0x07,
+		hdmi_print("EC2~EC0: 0x%x, %s\n", (_bAviInfoFm[2] >> 4) & 0x07,
 			 cAviExtColorimetryStr[(_bAviInfoFm[2] >> 4) & 0x07]);
 	else
-		pr_debug("EC2~EC0: resevered\n");
-	pr_debug("ITC: 0x%x, %s\n", (_bAviInfoFm[2] >> 7) & 0x01,
+		hdmi_print("EC2~EC0: resevered\n");
+	hdmi_print("ITC: 0x%x, %s\n", (_bAviInfoFm[2] >> 7) & 0x01,
 		 cAviItContentStr[(_bAviInfoFm[2] >> 7) & 0x01]);
-	pr_debug("====================AVI inforFrame End ======================================\n");
+	hdmi_print("====================AVI inforFrame End ======================================\n");
 
-	pr_debug("====================SPD inforFrame Start ====================================\n");
-	pr_debug("Data Byte (1~8)  = 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n", _bSpdInf[0],
+	hdmi_print("====================SPD inforFrame Start ====================================\n");
+	hdmi_print("Data Byte (1~8)  = 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n", _bSpdInf[0],
 		 _bSpdInf[1], _bSpdInf[2], _bSpdInf[3], _bSpdInf[4], _bSpdInf[5], _bSpdInf[6],
 		 _bSpdInf[7]);
-	pr_debug("Data Byte (9~16) = 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n", _bSpdInf[8],
+	hdmi_print("Data Byte (9~16) = 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n", _bSpdInf[8],
 		 _bSpdInf[9], _bSpdInf[10], _bSpdInf[11], _bSpdInf[12], _bSpdInf[13], _bSpdInf[14],
 		 _bSpdInf[15]);
-	pr_debug("Data Byte (17~24)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
+	hdmi_print("Data Byte (17~24)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
 		 _bSpdInf[16], _bSpdInf[17], _bSpdInf[18], _bSpdInf[19], _bSpdInf[20], _bSpdInf[21],
 		 _bSpdInf[22], _bSpdInf[23]);
-	pr_debug("Data Byte  25    = 0x%x\n", _bSpdInf[24]);
-	pr_debug("Source Device information is %s\n", cSPDDeviceStr[_bSpdInf[24]]);
-	pr_debug("====================SPD inforFrame End ======================================\n");
+	hdmi_print("Data Byte  25    = 0x%x\n", _bSpdInf[24]);
+	hdmi_print("Source Device information is %s\n", cSPDDeviceStr[_bSpdInf[24]]);
+	hdmi_print("====================SPD inforFrame End ======================================\n");
 
 	if (fgIsAcpEnable()) {
-		pr_debug
+		hdmi_print
 		    ("====================ACP inforFrame Start ====================================\n");
-		pr_debug("Acp type =0x%x\n", _bAcpType);
+		hdmi_print("Acp type =0x%x\n", _bAcpType);
 
 		if (_bAcpType == 0) {
-			pr_debug("Generic Audio\n");
-			pr_debug
+			hdmi_print("Generic Audio\n");
+			hdmi_print
 			    ("Data Byte (1~8)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
 			     _bAcpData[0], _bAcpData[1], _bAcpData[2], _bAcpData[3], _bAcpData[4],
 			     _bAcpData[5], _bAcpData[6], _bAcpData[7]);
-			pr_debug
+			hdmi_print
 			    ("Data Byte (9~16)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
 			     _bAcpData[8], _bAcpData[9], _bAcpData[10], _bAcpData[11],
 			     _bAcpData[12], _bAcpData[13], _bAcpData[14], _bAcpData[15]);
 		} else if (_bAcpType == 1) {
-			pr_debug("IEC 60958-Identified Audio\n");
-			pr_debug
+			hdmi_print("IEC 60958-Identified Audio\n");
+			hdmi_print
 			    ("Data Byte (1~8)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
 			     _bAcpData[0], _bAcpData[1], _bAcpData[2], _bAcpData[3], _bAcpData[4],
 			     _bAcpData[5], _bAcpData[6], _bAcpData[7]);
-			pr_debug
+			hdmi_print
 			    ("Data Byte (9~16)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
 			     _bAcpData[8], _bAcpData[9], _bAcpData[10], _bAcpData[11],
 			     _bAcpData[12], _bAcpData[13], _bAcpData[14], _bAcpData[15]);
 		} else if (_bAcpType == 2) {
-			pr_debug("DVD Audio\n");
-			pr_debug("DVD-AUdio_TYPE_Dependent Generation = 0x%x\n", _bAcpData[0]);
-			pr_debug("Copy Permission = 0x%x\n", (_bAcpData[1] >> 6) & 0x03);
-			pr_debug("Copy Number = 0x%x\n", (_bAcpData[1] >> 3) & 0x07);
-			pr_debug("Quality = 0x%x\n", (_bAcpData[1] >> 1) & 0x03);
-			pr_debug("Transaction = 0x%x\n", _bAcpData[1] & 0x01);
+			hdmi_print("DVD Audio\n");
+			hdmi_print("DVD-AUdio_TYPE_Dependent Generation = 0x%x\n", _bAcpData[0]);
+			hdmi_print("Copy Permission = 0x%x\n", (_bAcpData[1] >> 6) & 0x03);
+			hdmi_print("Copy Number = 0x%x\n", (_bAcpData[1] >> 3) & 0x07);
+			hdmi_print("Quality = 0x%x\n", (_bAcpData[1] >> 1) & 0x03);
+			hdmi_print("Transaction = 0x%x\n", _bAcpData[1] & 0x01);
 
 		} else if (_bAcpType == 3) {
-			pr_debug("SuperAudio CD\n");
-			pr_debug
+			hdmi_print("SuperAudio CD\n");
+			hdmi_print
 			    ("CCI_1 Byte (1~8)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
 			     _bAcpData[0], _bAcpData[1], _bAcpData[2], _bAcpData[3], _bAcpData[4],
 			     _bAcpData[5], _bAcpData[6], _bAcpData[7]);
-			pr_debug
+			hdmi_print
 			    ("CCI_1 Byte (9~16)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
 			     _bAcpData[8], _bAcpData[9], _bAcpData[10], _bAcpData[11],
 			     _bAcpData[12], _bAcpData[13], _bAcpData[14], _bAcpData[15]);
 
 		}
-		pr_debug
+		hdmi_print
 		    ("====================ACP inforFrame End ======================================\n");
 	}
 
 	if (fgIsISRC1Enable()) {
-		pr_debug
+		hdmi_print
 		    ("====================ISRC1 inforFrame Start ====================================\n");
-		pr_debug("Data Byte (1~8)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
+		hdmi_print("Data Byte (1~8)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
 			 _bIsrc1Data[0], _bIsrc1Data[1], _bIsrc1Data[2], _bIsrc1Data[3],
 			 _bIsrc1Data[4], _bIsrc1Data[5], _bIsrc1Data[6], _bIsrc1Data[7]);
-		pr_debug
+		hdmi_print
 		    ("====================ISRC1 inforFrame End ======================================\n");
 	}
 
 	if (fgIsISRC2Enable()) {
-		pr_debug
+		hdmi_print
 		    ("====================ISRC2 inforFrame Start ====================================\n");
-		pr_debug("Data Byte (1~8)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
+		hdmi_print("Data Byte (1~8)= 0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x  0x%x\n",
 			 _bIsrc1Data[8], _bIsrc1Data[9], _bIsrc1Data[10], _bIsrc1Data[11],
 			 _bIsrc1Data[12], _bIsrc1Data[13], _bIsrc1Data[14], _bIsrc1Data[15]);
-		pr_debug
+		hdmi_print
 		    ("====================ISRC2 inforFrame End ======================================\n");
 	}
 }
@@ -1829,11 +1834,11 @@ u32 u4ReadCtsValue(void)
 
 void vShowHdmiAudioStatus(void)
 {
-	pr_debug("[HDMI]HDMI output audio Channel Number =%d\n",
+	hdmi_print("[HDMI]HDMI output audio Channel Number =%d\n",
 		 _stAvdAVInfo.ui1_aud_out_ch_number);
-	pr_debug("[HDMI]HDMI output Audio Fs = %s\n", cHdmiAudFsStr[_stAvdAVInfo.e_hdmi_fs]);
-	pr_debug("[HDMI]HDMI MCLK =%d\n", _stAvdAVInfo.u1HdmiI2sMclk);
-	pr_debug("[HDMI]HDMI output ACR N= %d, CTS = %d\n", u4ReadNValue(), u4ReadCtsValue());
+	hdmi_print("[HDMI]HDMI output Audio Fs = %s\n", cHdmiAudFsStr[_stAvdAVInfo.e_hdmi_fs]);
+	hdmi_print("[HDMI]HDMI MCLK =%d\n", _stAvdAVInfo.u1HdmiI2sMclk);
+	hdmi_print("[HDMI]HDMI output ACR N= %d, CTS = %d\n", u4ReadNValue(), u4ReadCtsValue());
 }
 
 void vCheckDGI1CRC(void)
@@ -1850,13 +1855,13 @@ void vCheckDGI1CRC(void)
 			u4Data = dReadHdmiDGI(dgi1_crc_out) & 0xffff;
 		else {
 			if ((u4Data != (dReadHdmiDGI(dgi1_crc_out) & 0xffff)) || (u4Data == 0)) {
-				pr_debug("[HDMI]number = %d, u4Data = 0x%x\n", i, u4Data);
-				pr_debug("[HDMI]dgi crc error\n");
+				hdmi_print("[HDMI]number = %d, u4Data = 0x%x\n", i, u4Data);
+				hdmi_print("[HDMI]dgi crc error\n");
 				return;
 			}
 		}
 	}
-	pr_debug("[HDMI]dgi crc pass\n");
+	hdmi_print("[HDMI]dgi crc pass\n");
 }
 
 void vCheckHDMICRC(void)
@@ -1877,13 +1882,13 @@ void vCheckHDMICRC(void)
 			if ((u4Data !=
 			     ((bReadByteHdmiGRL(CRC_RESULT_L) & 0xff) +
 			      ((bReadByteHdmiGRL(CRC_RESULT_H) & 0xff) << 8))) || (u4Data == 0)) {
-				pr_debug("[HDMI]number = %d, u4Data = 0x%x\n", i, u4Data);
-				pr_debug("[HDMI]hdmi crc error\n");
+				hdmi_print("[HDMI]number = %d, u4Data = 0x%x\n", i, u4Data);
+				hdmi_print("[HDMI]hdmi crc error\n");
 				return;
 			}
 		}
 	}
-	pr_debug("[HDMI]hdmi crc pass\n");
+	hdmi_print("[HDMI]hdmi crc pass\n");
 }
 
 void vCheckHDMICLKPIN(void)
@@ -1898,7 +1903,7 @@ void vCheckHDMICLKPIN(void)
 
 		u4Data = ((dReadHdmiSYS(HDMI_SYS_FMETER) & (0xffff0000)) >> 16) * 26000 / 1024;
 
-		pr_debug("[HDMI]hdmi pin clk = %d.%dM\n", (u4Data / 1000),
+		hdmi_print("[HDMI]hdmi pin clk = %d.%dM\n", (u4Data / 1000),
 			 (u4Data - ((u4Data / 1000) * 1000)));
 	}
 }

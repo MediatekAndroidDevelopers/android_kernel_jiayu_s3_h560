@@ -387,84 +387,43 @@ PMHL2_video_descriptor_t pMHL2_video_descriptor = p_MHL2_video_descriptor_parm;
 
 	return ret_val;
 }
-#ifdef PRUNE_EDID
+
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
 void si_mhl_tx_prune_dtd_list(edid_3d_data_p mhl_edid_3d_data,
 							  P_18_byte_descriptor_u p_desc,uint8_t limit)
 {
 	uint8_t i;
 	uint8_t number_that_we_pruned = 0;
-	#define DTD_Demoresolution
-	#ifdef DTD_Demoresolution
-	const uint8_t DemodetailTiming [18]={0x01,  0x1D,  0x00,  0x72,  0x51, 0xD0,  0x1E,  0x20,  0x6E,  0x28,  0x55,  0x00,  0xC4,  0x8E,  0x21,  0x00,  0x00,  0x1E};
-	//extern void *memcpy(void *dest, const void *src,  uint8_t n);
-	#endif
-
 	MHL_TX_EDID_INFO(mhl_edid_3d_data->dev_context,"limit: %d\n",(uint16_t)limit);
-	MHL_TX_EDID_INFO(mhl_edid_3d_data->dev_context," si_peer_supports_packed_pixel(mhl_edid_3d_data->dev_context) :0x%02x\n",   (uint16_t) si_peer_supports_packed_pixel(mhl_edid_3d_data->dev_context) );
-	  if (limit&&(! si_peer_supports_packed_pixel(mhl_edid_3d_data->dev_context) ))
-    {
-        for (i = 0 ; i < limit -1 ; ++i)
-        {
-        	TX_PRUNE_PRINT(("limit4444: %d,i=%d,(p_desc->dtd.pixel_clock_high):0x%02x, si_peer_supports_packed_pixel(mhl_edid_3d_data->dev_context) :0x%02x\n",
-        		(uint16_t)limit,i,(uint16_t)(p_desc->dtd.pixel_clock_high),(uint16_t) si_peer_supports_packed_pixel(mhl_edid_3d_data->dev_context) ));
-		//DumpEdidBlock(pEdidBlock0,sizeof(*pEdidBlock0));
-
-		if ((0 != p_desc->dtd.pixel_clock_low) || (0 != p_desc->dtd.pixel_clock_high))
-	            {
-	                if ((0 == p_desc->dtd.horz_active_7_0)&&(0 == p_desc->dtd.horz_active_blanking_high.horz_blanking_11_8))
-	                {
-	                P_18_byte_descriptor_u pHolder=p_desc,pNextDesc = p_desc+1;
-	                uint8_t j;
-	                    number_that_we_pruned++;
-	                    for (j = i+1; j < limit ; ++j)
-	                    {TX_PRUNE_PRINT(("limit555555: %d, i=%d, j=%d\n",(uint16_t)limit,i,j));
-	                        // move the rest of the entries one by one
-	                        *p_desc++ = *pNextDesc++;
-	                    }
-	                    // re-consider the new occupant of the i'th entry on the next iteration
-	                    //i--;
-	                    p_desc=pHolder;
-	                }
-	            }
-			if ((p_desc->dtd.pixel_clock_high>0x20)&&(! si_peer_supports_packed_pixel(mhl_edid_3d_data->dev_context) ))
-				#ifndef DTD_Demoresolution
-				{
-					P_18_byte_descriptor_u pNextDesc = p_desc+1;//pHolder=p_desc,
+	if (limit) {
+		for (i = 0 ; i < limit -1 ; ++i) {
+			if ((0 != p_desc->dtd.pixel_clock_low) || (0 != p_desc->dtd.pixel_clock_high)) {
+				if ((0 == p_desc->dtd.horz_active_7_0)&&(0 == p_desc->dtd.horz_active_blanking_high.horz_active_11_8)) {
+					P_18_byte_descriptor_u p_holder=p_desc,p_next_desc = p_desc+1;
 					uint8_t j;
 					number_that_we_pruned++;
-					for (j = i+1; j < limit ; ++j)
-					{
-						//TX_PRUNE_PRINT(("limit6666666: %d,*p_desc:0x%02x\n",(uint16_t)limit,*p_desc));
-						// move the rest of the entries one by one
-						*p_desc++ = *pNextDesc++;
+					for (j = i+1; j < limit ; ++j) {
+						/* move the rest of the entries one by one */
+						*p_desc++ = *p_next_desc++;
 					}
-					// re-consider the new occupant of the i'th entry on the next iteration
+					/* re-consider the new occupant of the i'th entry on the next iteration */
 					i--;
-					//p_desc=pHolder;
-               		 }
-				#else
-				{
-					//TX_PRUNE_PRINT(("limit6666666: %d,*p_desc:0x%02x\n",(uint16_t)limit,*p_desc));
-				        memcpy(p_desc, &DemodetailTiming[0],18);				   
+					p_desc=p_holder;
 				}
-				#endif
-	
-        }
-        TX_PRUNE_PRINT(("limit2: %d\n",(uint16_t)limit));
-        // at this point "i" holds the value of mhlTxConfig.svdDataBlockLength-1
-        //  and p_desc points to the last entry in the list
-        for (;number_that_we_pruned >0;--number_that_we_pruned,--p_desc)
-        {
-        uint8_t *pu8Temp = (uint8_t *)p_desc;
-        uint8_t size;
-
-            for (size = sizeof(*p_desc); size > 0; --size)
-            {TX_PRUNE_PRINT(("*pu8Temp: %d\n",(uint16_t)*pu8Temp));
-                *pu8Temp++ = 0;
 			}
-        }
-        TX_PRUNE_PRINT(("limit3: %d\n",(uint16_t)limit));
-    }
+		}
+		/* at this point "i" holds the value of mhl_edid_3d_data->svddata_block_length-1 
+			and p_desc points to the last entry in the list 
+		*/
+		for (;number_that_we_pruned >0;--number_that_we_pruned,--p_desc) {
+			uint8_t *pu8_temp = (uint8_t *)p_desc;
+			uint8_t size;
+
+			for (size = sizeof(*p_desc); size > 0; --size) {
+				*pu8_temp-- = 0;
+			}
+		}
+	}
 }
 #endif
 
@@ -515,7 +474,7 @@ static bool si_mhl_tx_parse_detailed_timing_descriptor(
 
 				for (i = 0; i < 13; i++) {
 // TODO: FD, TBI
-					printk("%c", p_desc->name.ascii_name[i]); /* Display monitor name */
+					pr_debug("%c", p_desc->name.ascii_name[i]); /* Display monitor name */
 #if 0
 					MHL_TX_EDID_INFO(mhl_edid_3d_data->dev_context,
 							"%c", p_desc->name.ascii_name[i]); /* Display monitor name */
@@ -758,7 +717,7 @@ static uint8_t si_mhl_tx_parse_861_long_descriptors(edid_3d_data_p mhl_edid_3d_d
 
 }
 
-#ifdef PRUNE_EDID
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
 static void si_mhl_tx_prune_edid(edid_3d_data_p mhl_edid_3d_data)
 {
 	PEDID_block0_t p_EDID_block_0 = (PEDID_block0_t)&mhl_edid_3d_data->EDID_block_data[0];
@@ -1192,14 +1151,14 @@ static void si_mhl_tx_prune_edid(edid_3d_data_p mhl_edid_3d_data)
 
 
 	/*
-		TODO: adjust all pointers into the EDID along the way of pruning the contents, instead of re-parsing here
+		can be optimized: adjust all pointers into the EDID along the way of pruning the contents, instead of re-parsing here
 	*/
 #ifndef EDID_PASSTHROUGH //(
     if (0 == si_mhl_tx_drv_set_upstream_edid(mhl_edid_3d_data->drv_context,mhl_edid_3d_data->EDID_block_data,2*EDID_BLOCK_SIZE))
 #endif //)
 	{
 		SET_3D_FLAG(mhl_edid_3d_data,FLAGS_EDID_READ_DONE)
-		si_mhl_tx_drv_enable_video_path(mhl_edid_3d_data->drv_context);	// TODO: FD, TBI, debug?
+		si_mhl_tx_drv_enable_video_path(mhl_edid_3d_data->drv_context);
 	}
 }
 #endif
@@ -1496,13 +1455,14 @@ static void si_mhl_tx_display_timing_enumeration_end(edid_3d_data_p mhl_edid_3d_
 	/* notify the app (board specific) layer */
 	display_timing_enumeration_end(mhl_edid_3d_data);
 	SET_3D_FLAG(mhl_edid_3d_data,FLAGS_BURST_3D_DONE);
-	#ifdef PRUNE_EDID
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
 	si_mhl_tx_prune_edid(mhl_edid_3d_data);
-	#else
+#else
 	SET_3D_FLAG(mhl_edid_3d_data,FLAGS_EDID_READ_DONE)
 	si_mhl_tx_drv_enable_video_path(mhl_edid_3d_data->drv_context);	// //TODO: FD, TBI, debug?
-	#endif
+#endif
 }
+
 
 static void CheckForAll3DBurstDone(edid_3d_data_p mhl_edid_3d_data)
 {
@@ -2091,7 +2051,7 @@ void SiiMhlTxMakeItDVI(edid_3d_data_p mhl_edid_3d_data,PEDID_block0_t p_EDID_blo
 			,"EDID: second block now all 0xFF\n");
 }
 
-#if 0
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
 static void SiiMhlTx3dReqForNonTranscodeMode( edid_3d_data_p mhl_edid_3d_data )
 {
 	MHL_TX_EDID_INFO(mhl_edid_3d_data->dev_context,
@@ -2125,13 +2085,8 @@ static void SiiMhlTx3dReqForNonTranscodeMode( edid_3d_data_p mhl_edid_3d_data )
 
 			// EDID read need to be done in SW TPI mode, as it is done now, switch back to default TPI mode: HW TPI mode
 			si_mhl_tx_drv_set_hw_tpi_mode( mhl_edid_3d_data->drv_context, true );
-			#ifdef PRUNE_EDID
-			si_mhl_tx_prune_edid(mhl_edid_3d_data);
-			#else
-			SET_3D_FLAG(mhl_edid_3d_data,FLAGS_EDID_READ_DONE)
-			si_mhl_tx_drv_enable_video_path(mhl_edid_3d_data->drv_context);	// //TODO: FD, TBI, debug?
-			#endif
 
+			si_mhl_tx_prune_edid(mhl_edid_3d_data);
 		}
 	} else {
 #ifndef EDID_PASSTHROUGH //(
@@ -2142,7 +2097,7 @@ static void SiiMhlTx3dReqForNonTranscodeMode( edid_3d_data_p mhl_edid_3d_data )
 			si_mhl_tx_drv_set_hw_tpi_mode( mhl_edid_3d_data->drv_context, true );
 
 			SET_3D_FLAG(mhl_edid_3d_data, FLAGS_EDID_READ_DONE);
-			si_mhl_tx_drv_enable_video_path(mhl_edid_3d_data->drv_context);	// TODO: FD, TBI, debug?
+			si_mhl_tx_drv_enable_video_path(mhl_edid_3d_data->drv_context);
 		}
 	}
 }
@@ -2492,7 +2447,10 @@ uint8_t i;
                     {
                     P_vsdb_t p_vsdb = (P_vsdb_t) p_data_u.puc_data_block;
                     uint8_t *puc_next_db = ((uint8_t *)&p_vsdb->header) + sizeof(p_vsdb->header) + data_block_length;
-
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT                    
+                    extern bool MHL_3D_Support;
+                    MHL_3D_Support = false;
+#endif                       
 		    // TODO: FD, TBI, any chance of MHL OUI here? 0x030C00 is HDMI OUI
 		    if (   (p_vsdb->IEEE_OUI[0] == 0x03)
 				    && (p_vsdb->IEEE_OUI[1] == 0x0C)
@@ -2522,8 +2480,14 @@ uint8_t i;
 				    mhl_edid_3d_data->parse_data._3D_supported = false;
 			    } else if (mhl_edid_3d_data->parse_data.p_byte_13_through_byte_15->byte13._3D_present) {
 				    mhl_edid_3d_data->parse_data._3D_supported = true;
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT				    
+				    MHL_3D_Support= true;
+#endif				    
 			    } else {
 				    mhl_edid_3d_data->parse_data._3D_supported = false;
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT				    
+				    MHL_3D_Support= false;
+#endif				    
 			    }
 
 			    MHL_TX_EDID_INFO(mhl_edid_3d_data->dev_context,
@@ -2652,11 +2616,13 @@ void si_mhl_tx_handle_atomic_hw_edid_read_complete(edid_3d_data_p mhl_edid_3d_da
 	p_EDID_block_0->checksum = 0;
 	p_EDID_block_0->checksum = calculate_generic_checksum((uint8_t *)p_EDID_block_0,0,sizeof(*p_EDID_block_0));
 
-	//SiiMhlTx3dReqForNonTranscodeMode(mhl_edid_3d_data);
+#ifdef CONFIG_MTK_HDMI_3D_SUPPORT
+	SiiMhlTx3dReqForNonTranscodeMode(mhl_edid_3d_data);
+#endif	
 }
 
 /*
-		EXPORTED FUNCTIONS
+		EXPORTED FUNCTIONS 
 */
 
 void si_mhl_tx_initiate_edid_sequence(void *context)
@@ -2800,21 +2766,21 @@ void si_edid_destroy_context(void *context)
 void dump_EDID_block_impl(const char *pszFunction, int iLineNum,uint8_t override,uint8_t *pData,uint16_t length)
 {
     uint16_t i;
-    printk("%s:%d EDID DATA:\n",pszFunction,iLineNum);
+    pr_debug("%s:%d EDID DATA:\n",pszFunction,iLineNum);
 	for (i = 0; i < length; )
 	{
 	uint16_t j;
 	uint16_t temp = i;
 		for(j=0; (j < 16)&& (i<length);++j,++i)
 		{
-			printk("%02X ", pData[i]);
+			pr_debug("%02X ", pData[i]);
 		}
-		printk(" | ");
+		pr_debug(" | ");
 		for(j=0; (j < 16)&& (temp<length);++j,++temp)
 		{
-			printk("%c",((pData[temp]>=' ')&&(pData[temp]<='z'))?pData[temp]:'.');
+			pr_debug("%c",((pData[temp]>=' ')&&(pData[temp]<='z'))?pData[temp]:'.');
 		}
-		printk("\n");
+		pr_debug("\n");
 	}
 }
 #endif //)

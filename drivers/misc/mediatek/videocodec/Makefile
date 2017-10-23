@@ -5,4 +5,3 @@ obj-y += videocodec_kernel.o
 
 obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
 
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/smi/$(MTK_PLATFORM)

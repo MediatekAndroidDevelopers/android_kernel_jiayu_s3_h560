@@ -1,16 +1,3 @@
-/*
- * Copyright (C) 2015 MediaTek Inc.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
-
 /*#include <generated/autoconf.h>*/
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -20,29 +7,30 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/earlysuspend.h>
 #include <linux/kthread.h>
+#include <linux/rtpm_prio.h>
 #include <linux/vmalloc.h>
+#include <linux/disp_assert_layer.h>
 #include <linux/semaphore.h>
+#include <linux/xlog.h>
 #include <linux/mutex.h>
+#include <linux/leds-mt65xx.h>
 #include <linux/suspend.h>
 #include <linux/of_fdt.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/dma-buf.h>
-#include <linux/uaccess.h>
-#include <linux/atomic.h>
+#include <asm/uaccess.h>
+#include <asm/atomic.h>
 #include <asm/cacheflush.h>
-#include <linux/io.h>
+#include <asm/io.h>
+#include <mach/dma.h>
+/*#include <mach/irqs.h>*/
+#include <linux/dma-mapping.h>
+#include "mach/mt_boot.h"
 #include "mtkfb.h"
 #include "mtkfb_info.h"
-#include <linux/bug.h>
-/* #include <linux/earlysuspend.h> */
-/* #include "disp_assert_layer.h" */
-/* #include <linux/xlog.h> */
-/* #include <linux/leds-mt65xx.h> */
-/* #include <mach/dma.h> */
-/* #include <mach/irqs.h> */
-/* #include "mach/mt_boot.h" */
 
 #define DISPCHECK pr_warn
 #define ALIGN_TO(x, n)  \
@@ -78,7 +66,7 @@ unsigned int lcd_fps = 6000;
 char mtkfb_lcm_name[256] = { 0 };
 
 bool is_ipoh_bootup = false;
-bool is_early_suspended = false;
+bool is_early_suspended = FALSE;
 
 
 /* --------------------------------------------------------------------------- */
@@ -128,7 +116,7 @@ static int mtkfb_setcolreg(u_int regno, u_int red, u_int green,
 	int r = 0;
 	unsigned bpp, m;
 
-	/* NOT_REFERENCED(transp); */
+	NOT_REFERENCED(transp);
 	bpp = info->var.bits_per_pixel;
 	m = 1 << bpp;
 	if (regno >= m) {
@@ -152,7 +140,7 @@ static int mtkfb_setcolreg(u_int regno, u_int red, u_int green,
 		/* TODO: RGB888, BGR888, ABGR8888 */
 
 	default:
-		BUG();
+		ASSERT(0);
 	}
 
 exit:
@@ -186,7 +174,7 @@ static void set_fb_fix(struct mtkfb_device *fbdev)
 		fix->visual = FB_VISUAL_PSEUDOCOLOR;
 		break;
 	default:
-		BUG();
+		ASSERT(0);
 	}
 
 	fix->accel = FB_ACCEL_NONE;
@@ -209,7 +197,6 @@ static void set_fb_fix(struct mtkfb_device *fbdev)
 static int mtkfb_set_par(struct fb_info *fbi)
 {
 	struct mtkfb_device *fbdev = (struct mtkfb_device *)fbi->par;
-
 	set_fb_fix(fbdev);
 	return 0;
 }
@@ -308,17 +295,17 @@ static int mtkfb_check_var(struct fb_var_screeninfo *var, struct fb_info *fbi)
 
 		/* Check if format is RGB565 or BGR565 */
 
-		BUG_ON(!(8 == var->green.offset));
-		BUG_ON(!(16 == var->red.offset + var->blue.offset));
-		BUG_ON(!(16 == var->red.offset || 0 == var->red.offset));
+		ASSERT(8 == var->green.offset);
+		ASSERT(16 == var->red.offset + var->blue.offset);
+		ASSERT(16 == var->red.offset || 0 == var->red.offset);
 	} else if (32 == bpp) {
 		var->red.length = var->green.length = var->blue.length = var->transp.length = 8;
 
 		/* Check if format is ARGB565 or ABGR565 */
 
-		BUG_ON(!(8 == var->green.offset && 24 == var->transp.offset));
-		BUG_ON(!(16 == var->red.offset + var->blue.offset));
-		BUG_ON(!(16 == var->red.offset || 0 == var->red.offset));
+		ASSERT(8 == var->green.offset && 24 == var->transp.offset);
+		ASSERT(16 == var->red.offset + var->blue.offset);
+		ASSERT(16 == var->red.offset || 0 == var->red.offset);
 	}
 
 	var->red.msb_right = var->green.msb_right = var->blue.msb_right = var->transp.msb_right = 0;
@@ -350,6 +337,93 @@ static int mtkfb_pan_display_proxy(struct fb_var_screeninfo *var, struct fb_info
 	return mtkfb_pan_display_impl(var, info);
 }
 
+#ifdef CONFIG_DMA_SHARED_BUFFER
+static struct sg_table *mtkfb_dma_buf_map(struct dma_buf_attachment *attachment,
+					  enum dma_data_direction dir)
+{
+	struct sg_table *table;
+	struct fb_info *info = attachment->dmabuf->priv;
+	int err;
+
+	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
+	if (!table)
+		return ERR_PTR(-ENOMEM);
+
+	err = sg_alloc_table(table, 1, GFP_KERNEL);
+	if (err) {
+		kfree(table);
+		return ERR_PTR(err);
+	}
+
+	sg_set_page(table->sgl, NULL, info->fix.smem_len, 0);
+
+	sg_dma_address(table->sgl) = info->fix.smem_start;
+	debug_dma_map_sg(NULL, table->sgl, table->nents, table->nents, DMA_BIDIRECTIONAL);
+
+	return table;
+}
+
+static void mtkfb_dma_buf_unmap(struct dma_buf_attachment *attachment, struct sg_table *table,
+				enum dma_data_direction dir)
+{
+	debug_dma_unmap_sg(NULL, table->sgl, table->nents, DMA_BIDIRECTIONAL);
+	sg_free_table(table);
+	kfree(table);
+}
+
+static void mtkfb_dma_buf_release(struct dma_buf *buf)
+{
+	/* Nop */
+}
+
+static void *mtkfb_dma_buf_kmap_atomic(struct dma_buf *buf, unsigned long off)
+{
+	/* Not supported */
+	return NULL;
+}
+
+static void *mtkfb_dma_buf_kmap(struct dma_buf *buf, unsigned long off)
+{
+	/* Not supported */
+	return NULL;
+}
+
+static int mtkfb_dma_buf_mmap(struct dma_buf *buf, struct vm_area_struct *vma)
+{
+	struct fb_info *info = (struct fb_info *)buf->priv;
+
+	DISPCHECK(KERN_INFO "mtkfb: mmap dma-buf: %p, start: %lu, offset: %lu, size: %lu\n",
+	       buf, vma->vm_start, vma->vm_pgoff, vma->vm_end - vma->vm_start);
+
+	return io_remap_pfn_range(vma,
+				  vma->vm_start + vma->vm_pgoff,
+				  (info->fix.smem_start + vma->vm_pgoff) >> PAGE_SHIFT,
+				  vma->vm_end - vma->vm_start,
+				  pgprot_writecombine(vma->vm_page_prot));
+}
+
+static struct dma_buf_ops mtkfb_dma_buf_ops = {
+	.map_dma_buf = mtkfb_dma_buf_map,
+	.unmap_dma_buf = mtkfb_dma_buf_unmap,
+	.release = mtkfb_dma_buf_release,
+	.kmap_atomic = mtkfb_dma_buf_kmap_atomic,
+	.kmap = mtkfb_dma_buf_kmap,
+	.mmap = mtkfb_dma_buf_mmap,
+};
+
+static struct dma_buf *mtkfb_dmabuf_export(struct fb_info *info)
+{
+	struct dma_buf *buf;
+
+	DISPCHECK(KERN_INFO "mtkfb: Exporting dma-buf\n");
+
+	buf = dma_buf_export(info, &mtkfb_dma_buf_ops, info->fix.smem_len, O_RDWR);
+
+	return buf;
+}
+
+#endif
+
 /* Callback table for the frame buffer framework. Some of these pointers
  * will be changed according to the current setting of fb_info->accel_flags.
  */
@@ -366,6 +440,9 @@ static struct fb_ops mtkfb_ops = {
 	.fb_check_var = mtkfb_check_var,
 	.fb_set_par = mtkfb_set_par,
 	.fb_ioctl = NULL,
+#ifdef CONFIG_DMA_SHARED_BUFFER
+	.fb_dmabuf_export = mtkfb_dmabuf_export,
+#endif
 };
 
 
@@ -456,7 +533,7 @@ static void mtkfb_free_resources(struct mtkfb_device *fbdev, int state)
 	switch (state) {
 	case MTKFB_ACTIVE:
 		r = unregister_framebuffer(fbdev->fb_info);
-		BUG_ON(!(0 == r));
+		ASSERT(0 == r);
 		/* lint -fallthrough */
 	case 4:
 		mtkfb_fbinfo_cleanup(fbdev);
@@ -503,16 +580,17 @@ static int fb_early_init_dt_get_chosen(unsigned long node, const char *uname, in
 /* 0: success / 1: fail */
 int _parse_tag_videolfb(void)
 {
-	int size = 0;
-	const void *prop = NULL;
-	const struct tag_videolfb *videolfb_tag = NULL;
+	unsigned long size = 0;
+	void *prop = NULL;
+	struct tag_videolfb *videolfb_tag = NULL;
 
 	DISPCHECK("[DT][videolfb]isvideofb_parse_done = %d\n", is_videofb_parse_done);
 
 	if (is_videofb_parse_done)
 		return 0;
 	if (of_scan_flat_dt(fb_early_init_dt_get_chosen, NULL) > 0) {
-		videolfb_tag = (struct tag_videolfb *)of_get_flat_dt_prop(video_node, "atag,videolfb", NULL);
+		videolfb_tag =
+		    (struct tag_videolfb *)of_get_flat_dt_prop(video_node, "atag,videolfb", NULL);
 		if (videolfb_tag) {
 			DISPCHECK("[DT][videolfb] find video info from lk\n");
 			memset((void *)mtkfb_lcm_name, 0, sizeof(mtkfb_lcm_name));
@@ -532,6 +610,7 @@ int _parse_tag_videolfb(void)
 			DISPCHECK("[DT][videolfb] fb_base    = %p\n", (void *)fb_base);
 			DISPCHECK("[DT][videolfb] vram       = %d\n", vramsize);
 			DISPCHECK("[DT][videolfb] lcmname    = %s\n", mtkfb_lcm_name);
+			return 0;
 		} else {
 			DISPCHECK("[DT][videolfb] find video info from dts\n");
 			prop = of_get_flat_dt_prop(video_node, "atag,videolfb-fb_base", NULL);
@@ -571,7 +650,7 @@ int _parse_tag_videolfb(void)
 			}
 
 			if (size >= sizeof(mtkfb_lcm_name)) {
-				DISPCHECK("%s: error to get lcmname size=%d\n", __func__,
+				DISPCHECK("%s: error to get lcmname size=%ld\n", __func__,
 					  size);
 				return -1;
 			}
@@ -586,13 +665,12 @@ int _parse_tag_videolfb(void)
 			DISPCHECK("[DT][videolfb] fps        = %d\n", lcd_fps);
 			DISPCHECK("[DT][videolfb] vram       = %d\n", vramsize);
 			DISPCHECK("[DT][videolfb] lcmname    = %s\n", mtkfb_lcm_name);
+			return 0;
 		}
 	} else {
 		DISPCHECK("[DT][videolfb] of_chosen not found\n");
 		return 1;
 	}
-
-	return 0;
 }
 
 phys_addr_t mtkfb_get_fb_base(void)
@@ -621,7 +699,6 @@ static int mtkfb_probe(struct device *dev)
 	struct fb_info *fbi;
 	int init_state;
 	int r = 0;
-
 	DISPCHECK("mtkfb_probe begin\n");
 
 #ifdef CONFIG_OF
@@ -655,7 +732,6 @@ static int mtkfb_probe(struct device *dev)
 		fbdev->fb_pa_base = (dma_addr_t) fb_base;
 #else
 		struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
 		disp_hal_allocate_framebuffer(res->start, res->end,
 					      (unsigned int *)&fbdev->fb_va_base, &fb_pa);
 		fbdev->fb_pa_base = res->start;
@@ -719,19 +795,8 @@ static int mtkfb_remove(struct device *dev)
 {
 	struct mtkfb_device *fbdev = dev_get_drvdata(dev);
 	enum mtkfb_state saved_state = fbdev->state;
-
 	fbdev->state = MTKFB_DISABLED;
 	mtkfb_free_resources(fbdev, saved_state);
-	return 0;
-}
-
-int mtkfb_set_backlight_mode(unsigned int mode)
-{
-	return 0;
-}
-
-int mtkfb_set_backlight_level(unsigned int level)
-{
 	return 0;
 }
 
@@ -742,29 +807,30 @@ int mtkfb_ipo_init(void)
 
 void mtkfb_clear_lcm(void)
 {
-	;
+	return;
 }
 
 static const struct of_device_id mtkfb_of_ids[] = {
-	{ .compatible = "mediatek,mtkfb", },
+	{.compatible = "mediatek,MTKFB",},
 	{}
 };
 
 static struct platform_driver mtkfb_driver = {
 	.driver = {
-		.name = MTKFB_DRIVER,
+		   .name = MTKFB_DRIVER,
 #ifdef CONFIG_PM
-		.pm = NULL,
+		   .pm = NULL,
 #endif
-		.bus = &platform_bus_type,
-		.probe = mtkfb_probe,
-		.remove = mtkfb_remove,
-		.suspend = NULL,
-		.resume = NULL,
-		.shutdown = NULL,
-		.of_match_table = mtkfb_of_ids,
-	},
+		   .bus = &platform_bus_type,
+		   .probe = mtkfb_probe,
+		   .remove = mtkfb_remove,
+		   .suspend = NULL,
+		   .resume = NULL,
+		   .shutdown = NULL,
+		   .of_match_table = mtkfb_of_ids,
+		   },
 };
+
 
 /* Register both the driver and the device */
 int __init mtkfb_init(void)
@@ -783,6 +849,7 @@ int __init mtkfb_init(void)
 static void __exit mtkfb_cleanup(void)
 {
 	platform_driver_unregister(&mtkfb_driver);
+
 }
 
 

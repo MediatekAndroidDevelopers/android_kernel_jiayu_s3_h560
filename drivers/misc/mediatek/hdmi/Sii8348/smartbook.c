@@ -2,8 +2,6 @@
 // Original MHL driver use tabstop=4, this policy is followed here.
 #include <linux/delay.h>
 #include <mach/mt_gpio.h>
-#include <cust_gpio_usage.h>
-#include <cust_eint.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/time.h>

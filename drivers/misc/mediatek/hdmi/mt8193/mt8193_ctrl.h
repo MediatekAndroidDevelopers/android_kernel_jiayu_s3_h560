@@ -45,7 +45,7 @@
 #include <mach/mt_gpio.h>
 #include <mach/mt_pm_ldo.h>
 
-extern size_t mt8193_log_on;
+extern unsigned int mt8193_log_on;
 
 #define hdmiplllog         (0x1)
 #define hdmidgilog         (0x2)
@@ -57,42 +57,44 @@ extern size_t mt8193_log_on;
 #define hdmiddclog         (0x80)
 #define hdmiedidlog        (0x100)
 #define hdmidrvlog         (0x200)
+#define hdmideflog         (0x400)
 
 #define mt8193hdmialllog   (0xffff)
 
+#define hdmi_print printk
 /* ////////////////////////////////////////////PLL////////////////////////////////////////////////////// */
 #define MT8193_PLL_LOG(fmt, arg...) \
 	do { \
-		if (mt8193_log_on&hdmiplllog) {pr_debug("[mt8193_pll]%s,%d ", __func__, __LINE__); pr_debug(fmt, ##arg); } \
+		if (mt8193_log_on&hdmiplllog) {hdmi_print("[hdmi_pll]%s,%d ", __func__, __LINE__); hdmi_print(fmt, ##arg); } \
 	} while (0)
 
 #define MT8193_PLL_FUNC()	\
 	do { \
-		if (mt8193_log_on&hdmiplllog) {pr_debug("[mt8193_pll] %s\n", __func__); } \
+		if (mt8193_log_on&hdmiplllog) {hdmi_print("[hdmi_pll] %s\n", __func__); } \
 	} while (0)
 
 /* ////////////////////////////////////////////DGI////////////////////////////////////////////////////// */
 
 #define MT8193_DGI_LOG(fmt, arg...) \
     do { \
-        if (mt8193_log_on&hdmidgilog) {pr_debug("[mt8193_dgi1]%s,%d ", __func__, __LINE__); pr_debug(fmt, ##arg); } \
+        if (mt8193_log_on&hdmidgilog) {hdmi_print("[hdmi_dgi1]%s,%d ", __func__, __LINE__); hdmi_print(fmt, ##arg); } \
     } while (0)
 
 #define MT8193_DGI_FUNC()	\
     do { \
-        if (mt8193_log_on&hdmidgilog) {pr_debug("[mt8193_dgi1] %s\n", __func__); } \
+        if (mt8193_log_on&hdmidgilog) {hdmi_print("[hdmi_dgi1] %s\n", __func__); } \
     } while (0)
 
 /* ////////////////////////////////////////////PLUG////////////////////////////////////////////////////// */
 
 #define MT8193_PLUG_LOG(fmt, arg...) \
     do { \
-        if (mt8193_log_on&hdmitxhotpluglog) {pr_debug("[mt8193_plug]%s,%d ", __func__, __LINE__); pr_debug(fmt, ##arg); } \
+        if (mt8193_log_on&hdmitxhotpluglog) {hdmi_print("[hdmi_plug]%s,%d ", __func__, __LINE__); hdmi_print(fmt, ##arg); } \
     } while (0)
 
 #define MT8193_PLUG_FUNC()	\
     do { \
-        if (mt8193_log_on&hdmitxhotpluglog) {pr_debug("[mt8193_plug] %s\n", __func__); } \
+        if (mt8193_log_on&hdmitxhotpluglog) {hdmi_print("[hdmi_plug] %s\n", __func__); } \
     } while (0)
 
 
@@ -100,79 +102,84 @@ extern size_t mt8193_log_on;
 
 #define MT8193_VIDEO_LOG(fmt, arg...) \
     do { \
-        if (mt8193_log_on&hdmitxvideolog) {pr_debug("[mt8193_video]%s,%d ", __func__, __LINE__); pr_debug(fmt, ##arg); } \
+        if (mt8193_log_on&hdmitxvideolog) {hdmi_print("[hdmi_video]%s,%d ", __func__, __LINE__); hdmi_print(fmt, ##arg); } \
     } while (0)
 
 #define MT8193_VIDEO_FUNC()	\
     do { \
-        if (mt8193_log_on&hdmitxvideolog) {pr_debug("[mt8193_video] %s\n", __func__); } \
+        if (mt8193_log_on&hdmitxvideolog) {hdmi_print("[hdmi_video] %s\n", __func__); } \
     } while (0)
 
 /* //////////////////////////////////////////////AUDIO//////////////////////////////////////////////////// */
 
 #define MT8193_AUDIO_LOG(fmt, arg...) \
     do { \
-        if (mt8193_log_on&hdmitxaudiolog) {pr_debug("[mt8193_audio]%s,%d ", __func__, __LINE__); pr_debug(fmt, ##arg); } \
+        if (mt8193_log_on&hdmitxaudiolog) {hdmi_print("[hdmi_audio]%s,%d ", __func__, __LINE__); hdmi_print(fmt, ##arg); } \
     } while (0)
 
 #define MT8193_AUDIO_FUNC()	\
     do { \
-        if (mt8193_log_on&hdmitxaudiolog) {pr_debug("[mt8193_audio] %s\n", __func__); } \
+        if (mt8193_log_on&hdmitxaudiolog) {hdmi_print("[hdmi_audio] %s\n", __func__); } \
     } while (0)
 /* ///////////////////////////////////////////////HDCP/////////////////////////////////////////////////// */
 
 #define MT8193_HDCP_LOG(fmt, arg...) \
     do { \
-        if (mt8193_log_on&hdmihdcplog) {pr_debug("[mt8193_hdcp]%s,%d ", __func__, __LINE__); pr_debug(fmt, ##arg); } \
+        if (mt8193_log_on&hdmihdcplog) {hdmi_print("[hdmi_hdcp]%s,%d ", __func__, __LINE__); hdmi_print(fmt, ##arg); } \
     } while (0)
 
 #define MT8193_HDCP_FUNC()	\
     do { \
-        if (mt8193_log_on&hdmihdcplog) {pr_debug("[mt8193_hdcp] %s\n", __func__); } \
+        if (mt8193_log_on&hdmihdcplog) {hdmi_print("[hdmi_hdcp] %s\n", __func__); } \
     } while (0)
 
 /* ///////////////////////////////////////////////CEC/////////////////////////////////////////////////// */
 
 #define MT8193_CEC_LOG(fmt, arg...) \
     do { \
-        if (mt8193_log_on&hdmiceclog) {pr_debug("[mt8193_cec]%s,%d ", __func__, __LINE__); pr_debug(fmt, ##arg); } \
+        if (mt8193_log_on&hdmiceclog) {hdmi_print("[hdmi_cec]%s,%d ", __func__, __LINE__); hdmi_print(fmt, ##arg); } \
     } while (0)
 
 #define MT8193_CEC_FUNC()	\
     do { \
-        if (mt8193_log_on&hdmiceclog) {pr_debug("[mt8193_cec] %s\n", __func__); } \
+        if (mt8193_log_on&hdmiceclog) {hdmi_print("[hdmi_cec] %s\n", __func__); } \
     } while (0)
 /* ///////////////////////////////////////////////DDC////////////////////////////////////////////////// */
 #define MT8193_DDC_LOG(fmt, arg...) \
 	do { \
-		if (mt8193_log_on&hdmiddclog) {pr_debug("[mt8193_ddc]%s,%d ", __func__, __LINE__); pr_debug(fmt, ##arg); } \
+		if (mt8193_log_on&hdmiddclog) {hdmi_print("[hdmi_ddc]%s,%d ", __func__, __LINE__); hdmi_print(fmt, ##arg); } \
 	} while (0)
 
 #define MT8193_DDC_FUNC()	\
 	do { \
-		if (mt8193_log_on&hdmiddclog) {pr_debug("[mt8193_ddc] %s\n", __func__); } \
+		if (mt8193_log_on&hdmiddclog) {hdmi_print("[hdmi_ddc] %s\n", __func__); } \
 	} while (0)
 /* ///////////////////////////////////////////////EDID////////////////////////////////////////////////// */
 #define MT8193_EDID_LOG(fmt, arg...) \
 	do { \
-		if (mt8193_log_on&hdmiedidlog) {pr_debug("[mt8193_edid]%s,%d ", __func__, __LINE__); pr_debug(fmt, ##arg); } \
+		if (mt8193_log_on&hdmiedidlog) {hdmi_print("[hdmi_edid]%s,%d ", __func__, __LINE__); hdmi_print(fmt, ##arg); } \
 	} while (0)
 
 #define MT8193_EDID_FUNC()	\
 	do { \
-		if (mt8193_log_on&hdmiedidlog) {pr_debug("[mt8193_edid] %s\n", __func__); } \
+		if (mt8193_log_on&hdmiedidlog) {hdmi_print("[hdmi_edid] %s\n", __func__); } \
 	} while (0)
 /* ////////////////////////////////////////////////DRV///////////////////////////////////////////////// */
 
 #define MT8193_DRV_LOG(fmt, arg...) \
     do { \
-        if (mt8193_log_on&hdmidrvlog) {pr_debug("[mt8193_drv]%s,%d ", __func__, __LINE__); pr_debug(fmt, ##arg); } \
+        if (mt8193_log_on&hdmidrvlog) {hdmi_print("[hdmi_drv]%s,%d ", __func__, __LINE__); hdmi_print(fmt, ##arg); } \
     } while (0)
 
 #define MT8193_DRV_FUNC()	\
     do { \
-        if (mt8193_log_on&hdmidrvlog) {pr_debug("[mt8193_drv] %s\n", __func__); } \
+        if (mt8193_log_on&hdmidrvlog) {hdmi_print("[hdmi_drv] %s\n", __func__); } \
     } while (0)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+#define HDMI_DEF_LOG(fmt, arg...) \
+            do { \
+                if (mt8193_log_on&hdmideflog) {printk(fmt, ##arg);} \
+            }while (0)    
 /* ///////////////////////////////////////////////////////////////////////////////////////////////// */
 
 #define RETNULL(cond)       if ((cond)) {MT8193_DRV_LOG("return in %d\n", __LINE__); return; }

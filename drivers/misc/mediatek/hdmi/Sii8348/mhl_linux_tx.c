@@ -47,15 +47,13 @@ the GNU General Public License for more details at http://www.gnu.org/licenses/g
 #include <mach/irqs.h>
 #include "mach/eint.h"
 #include <mach/mt_gpio.h>
-#include <cust_gpio_usage.h>
-#include <cust_eint.h>
 #include "hdmi_drv.h"
 #include "smartbook.h"
 
 #define MHL_DRIVER_MINOR_MAX 1
-static wait_queue_head_t mhl_irq_wq;
+wait_queue_head_t mhl_irq_wq;
 static struct task_struct *mhl_irq_task = NULL;
-static atomic_t mhl_irq_event = ATOMIC_INIT(0);
+atomic_t mhl_irq_event = ATOMIC_INIT(0);
 
 
 /************************** MHL TX User Layer To HAL****************************************/
@@ -1594,16 +1592,10 @@ struct device_attribute driver_attribs[] = {
 	__ATTR_NULL
 };
 
-static void mhl8338_irq_handler(void)
-{
- 	atomic_set(&mhl_irq_event, 1);
-    wake_up_interruptible(&mhl_irq_wq); 
-	//mt65xx_eint_unmask(CUST_EINT_HDMI_HPD_NUM);   
-}
-
+extern void Unmask_MHL_Intr(void);
 static void mhl_irq_handler(int irq, void *data);
-
 static int irq_cnt = 0;
+
 static int mhl_irq_kthread(void *data)
 {
     int i=0;
@@ -1615,17 +1607,14 @@ static int mhl_irq_kthread(void *data)
         wait_event_interruptible(mhl_irq_wq, atomic_read(&mhl_irq_event));
         set_current_state(TASK_RUNNING);
         irq_cnt++;
-        //hdmi_update_impl();
 
 		atomic_set(&mhl_irq_event, 0);
 		//for( i=0;i<30; i++)
-            mhl_irq_handler(0, si_dev_context);
-        
+        mhl_irq_handler(0, si_dev_context);
+
+        Unmask_MHL_Intr();
         if (kthread_should_stop())
             break;
-#ifdef CUST_EINT_MHL_NUM
-		mt_eint_unmask(CUST_EINT_MHL_NUM);
-#endif
     }
 
     return 0;
@@ -1724,7 +1713,7 @@ irq_done:
 }
 
 /* APIs provided by the MHL layer to the lower level driver */
-
+extern void register_mhl_eint();
 int mhl_tx_init(struct mhl_drv_info const *drv_info, struct i2c_client *client)
 {
 	///struct mhl_dev_context *dev_context;
@@ -1801,12 +1790,8 @@ int mhl_tx_init(struct mhl_drv_info const *drv_info, struct i2c_client *client)
 		goto free_cdev;
 	}
 
-#ifdef CUST_EINT_MHL_NUM
-        mt_eint_registration(CUST_EINT_MHL_NUM, CUST_EINT_MHL_TYPE, &mhl8338_irq_handler, 0);
-        mt_eint_mask(CUST_EINT_MHL_NUM);
-#else
-        printk("%s,%d Error: CUST_EINT_MHL_NUM is not defined\n", __func__, __LINE__);
-#endif
+    register_mhl_eint();
+    
 	/* Initialize the MHL transmitter hardware. */
 	ret = down_interruptible(&si_dev_context->isr_lock);
 	if (ret) {

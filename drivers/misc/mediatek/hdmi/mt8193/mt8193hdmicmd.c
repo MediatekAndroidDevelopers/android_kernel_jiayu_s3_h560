@@ -298,14 +298,14 @@ void mt8193_InfoframeSetting(u8 i1typemode, u8 i1typeselect)
 	u8 bData;
 
 	if ((i1typemode == 0xff) && (i1typeselect == 0xff)) {
-		pr_debug("Arg1: Infoframe output type\n");
-		pr_debug("1: AVi, 2: Mpeg, 3: SPD\n");
-		pr_debug("4: Vendor, 5: Audio, 6: ACP\n");
-		pr_debug("7: ISRC1, 8: ISRC2,  9:GENERIC\n");
-		pr_debug("10:GAMUT\n");
+		hdmi_print("Arg1: Infoframe output type\n");
+		hdmi_print("1: AVi, 2: Mpeg, 3: SPD\n");
+		hdmi_print("4: Vendor, 5: Audio, 6: ACP\n");
+		hdmi_print("7: ISRC1, 8: ISRC2,  9:GENERIC\n");
+		hdmi_print("10:GAMUT\n");
 
-		pr_debug("Arg2: Infoframe data select\n");
-		pr_debug("0: old(default), 1: new;\n");
+		hdmi_print("Arg2: Infoframe data select\n");
+		hdmi_print("0: old(default), 1: new;\n");
 		return;
 	}
 
