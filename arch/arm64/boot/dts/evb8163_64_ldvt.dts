@@ -1,0 +1,75 @@
+
+/dts-v1/;
+
+/include/ "mt8163.dtsi"
+
+/ {
+	memory@00000000 {
+		device_type = "memory";
+		reg = <0 0x40000000 0 0x80000000>;
+	};
+
+	bus {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0 0xffffffff>;
+
+		I2C0@0x11007000 {
+			mt6306@64 {
+				compatible = "mediatek,mt6306";
+				reg = <0x64>;
+			};
+		};
+
+		I2C1@0x11008000 {
+			yas533@2e {
+				compatible = "yas533";
+				reg = <0x2e>;
+			};
+
+			mpu-6515@68 {
+				compatible = "mpu-6515";
+				reg = <0x68>;
+			};
+
+			bmp180@77 {
+				compatible = "bmp180";
+				reg = <0x77>;
+			};
+
+			cm36652@60 {
+				compatble = "cm36652";
+				reg = <0x60>;
+			};
+
+			mt6605@28 {
+				compatible = "mediatek,mt6605";
+				reg = <0x28>;
+			};
+		};
+
+		I2C2@0x10059c00 {
+			bq24296@6b {
+				compatible = "ti,bq24296";
+				reg = <0x6b>;
+			};
+		};
+
+		MT_SOC_DL1_PCM@0x11220000 {
+			compatible = "mediatek,mt_soc_pcm_dl1";
+			reg = <0x11220000 0x1000>;
+			interrupts = <0 142 0x8>;
+			audclk-gpio = <7 0>;
+			audmiso-gpio = <8 0>;
+			audmosi-gpio = <9 0>;
+			vowclk-gpio = <148 0>;
+            extspkamp-gpio = <24 0>;			
+			i2s1clk-gpio = <135 0>;
+			i2s1dat-gpio = <137 0>;
+			i2s1mclk-gpio = <134 0>;
+			i2s1ws-gpio = <136 0>;
+		};		
+
+	};
+};
